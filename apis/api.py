@@ -273,6 +273,7 @@ def initialize(db_uri):
     my_uuid = devops_version.set_deployment_uuid()
     logger.logger.info(f"Deployment UUID set as {my_uuid}.")
     devops_version.login()
+    devops_version.register_in_vc()
     logger.logger.info("Server initialized.")
 
 
@@ -593,7 +594,7 @@ api.add_resource(project_permission.SetPermission, "/project_permission/set_perm
 # api.add_resource(devops_version.DevOpsVersionCheck, "/devops_version/check")
 # api.add_resource(devops_version.DevOpsVersionUpdate, "/devops_version/update")
 
-'''
+"""
 # Deploy
 api.add_resource(deploy.Clusters, "/deploy/clusters")
 api.add_resource(deploy.Cluster, "/deploy/clusters/<int:cluster_id>")
@@ -628,13 +629,13 @@ api.add_resource(deploy.UpdateStorageClass, "/deploy/storage/<int:storage_class_
 # 20230202 為取得 persistent volume claim 資訊而新增下列API
 api.add_resource(deploy.PersistentVolumeClaim, "/deploy/clusters/storage/pvc/<int:storage_class_id>")
 # 20230202 為取得 persistent volume claim 資訊而新增上列API
-'''
+"""
 # Alert
 api.add_resource(alert.ProjectAlert, "/project/<sint:project_id>/alert")
 api.add_resource(alert.ProjectAlertUpdate, "/alert/<int:alert_id>")
 api.add_resource(alert.DefaultAlertDaysUpdate, "/alert/default_days")
 
-'''
+"""
 # Trace Order
 api.add_resource(trace_order.TraceOrders, "/trace_order")
 api.add_resource(trace_order.TraceOrdersV2, "/v2/trace_order")
@@ -651,7 +652,7 @@ add_resource(trace_order.ExecuteTraceOrderV2, "private")
 api.add_resource(trace_order.GetTraceResult, "/trace_order/result")
 api.add_resource(trace_order.GetTraceResultV2, "/v2/trace_order/result")
 add_resource(trace_order.GetTraceResultV2, "private")
-'''
+"""
 # monitoring
 # monitoring.monitoring_url(api, add_resource)
 
@@ -724,5 +725,4 @@ def start_prod():
 
 if __name__ == "__main__":
     start_prod()
-    # app.run(host="0.0.0.0", port=10010)
-    socketio.run(app, host="0.0.0.0", port=10011)
+    socketio.run(app, host="0.0.0.0", port=10009)

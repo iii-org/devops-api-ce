@@ -57,9 +57,15 @@ def __api_request(method, path, headers=None, params=None, data=None, with_token
         )
     return output
 
+
 def __api_post(path, params=None, headers=None, data=None, with_token=True):
     return __api_request("POST", path, headers=headers, data=data, params=params, with_token=with_token)
 
+
+def register_in_vc() -> None:
+    nexus_version = model.NexusVersion.query.first()
+    deploy_version, deploy_uuid = nexus_version.deploy_version, nexus_version.deployment_uuid
+    __api_post("/report_info", data={"iiidevops": {"deploy_version": deploy_version}, "uuid": deploy_uuid})
 
 
 '''
