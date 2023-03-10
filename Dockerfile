@@ -3,7 +3,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git curl
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN echo "1.0.0" > git_tag
+RUN echo "lite-1.0.0" > git_tag
 
 COPY . .
 RUN git rev-parse HEAD > git_commit
