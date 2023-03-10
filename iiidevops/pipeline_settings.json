@@ -1,0 +1,6 @@
+{
+  "name": "Python-Flask",
+  "description": "Flask / Python 3.8 <a class='el-link el-link--primary' href='https://github.com/iiidevops-templates/flask-webpage-with-men/blob/master/README.md' target='_blank'>webpage 範本說明</a><hr /><ul>  <li><strong>v1.20</strong>:整合 rancher-cli 與 deployment-wait 至 iiidevops-cli</li>  <li><strong>v1.19</strong>:增加自動計算原始碼行數功能</li>  <li><strong>v1.18</strong>:調整 Web DB chart 支援掛載 NFS Volume 參數</li></ul>",
+  "arguments": [
+  ]
+}

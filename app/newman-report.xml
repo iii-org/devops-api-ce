@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="Django Todo Postman Test" tests="1" time="0.136">
+  <testsuite name="index" id="d6767e87-e849-4442-9df1-dd845833c5a5" timestamp="2021-03-08T03:38:29.462Z" tests="2" failures="0" errors="0" time="0.136">
+    <testcase name="Response time is less than 800ms" time="0.136" classname="DjangoTodoPostmanTest"/>
+    <testcase name="Status code is 200" time="0.136" classname="DjangoTodoPostmanTest"/>
+  </testsuite>
+</testsuites>
