@@ -205,7 +205,7 @@ def sq_get_history_measures(project_name):
         branch = git_info[0]
         commit_id = git_info[1]
         fetch[date]["branch"] = branch
-        fetch[date]["commit_id"] = commit_id[:7]
+        fetch[date]["commit_id"] = commit_id
         fetch[date]["issue_link"] = gitlab.commit_id_to_url(project_id, commit_id)
 
     # Write new data into db
