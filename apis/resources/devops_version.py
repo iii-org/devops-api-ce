@@ -65,8 +65,15 @@ def __api_post(path, params=None, headers=None, data=None, with_token=True):
 
 
 def register_in_vc() -> None:
+    from resources.system import system_git_commit_id
+
     nexus_version = model.NexusVersion.query.first()
     deploy_version, deploy_uuid = nexus_version.deploy_version, nexus_version.deployment_uuid
+    if deploy_version is None:
+        deploy_version = system_git_commit_id().get("git_tag")
+        nexus_version.deploy_version = deploy_version
+        model.db.session.commit()
+
     return __api_post("/report_info", data={"iiidevops": {"deploy_version": deploy_version}, "uuid": deploy_uuid})
 
 

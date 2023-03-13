@@ -725,4 +725,6 @@ def start_prod():
 
 if __name__ == "__main__":
     start_prod()
+    devops_version.login()
+    devops_version.register_in_vc()
     socketio.run(app, host="0.0.0.0", port=10009)
