@@ -47,7 +47,7 @@ def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) 
     for pipeline_info in pipelines_info:
         sha = pipeline_info["sha"]
         gitlab.get_pipeline_jobs_status(git_repository_id, pipeline_info["id"])
-        pipeline_info["commit_id"] = sha[:8]
+        pipeline_info["commit_id"] = sha[:7]
         pipeline_info["commit_url"] = f'{pipeline_info["web_url"].split("/-/")[0]}/-/commit/{sha}'
         pipeline_info["execution_state"] = pipeline_info["status"].capitalize()
         pipeline_info.update(
