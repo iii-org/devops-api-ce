@@ -1193,19 +1193,24 @@ def delete_issue(issue_id, delete_excalidraw=False):
     return "success"
 
 
-def get_issue_datetime_status(project_id):
+def get_issue_datetime_status(project_id:str) -> dict[str, int]:
     kwargs = {}
-    df_issue = pd.DataFrame(
-        get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
-    )
-    df_issue = df_issue[df_issue["is_closed"] == False]
-    df_issue_date = df_issue[["id", "start_date", "due_date"]]
-    total_num = df_issue.shape[0]
-    no_due_date_num = df_issue_date[df_issue_date["due_date"].isnull()].shape[0]
-    df_has_due_date = df_issue_date[df_issue_date["due_date"].notnull()]
-    df_has_due_date["now"] = str(date.today())
-    expire_num = df_has_due_date[df_has_due_date["due_date"] < df_has_due_date["now"]].shape[0]
-    normal_num = df_has_due_date[df_has_due_date["due_date"] > df_has_due_date["now"]].shape[0]
+    no_due_date_num, expire_num, normal_num= 0, 0, 0
+    issues_list= get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
+    issue_info={'id':[], 'start_date':[], 'due_date':[]}
+    for issue_ in issues_list:
+        if issue_['is_closed'] == False:
+            issue_info['id'].append(issue_['id'])
+            issue_info['start_date'].append(issue_['start_date'])
+            issue_info['due_date'].append(issue_['due_date'])
+
+    total_num = len(issue_info['id'])
+    for issue_due_date in issue_info.get('due_date', []):
+        if issue_due_date is not None:
+            no_due_date_num += 1
+            expire_num += 1 if issue_due_date < str(date.today()) else None
+            normal_num += 1 if issue_due_date > str(date.today()) else None
+
     output = {
         "total_num": total_num,
         "no_due_date_num": no_due_date_num,
