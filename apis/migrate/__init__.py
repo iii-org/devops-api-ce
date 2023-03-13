@@ -6,15 +6,12 @@ from resources.logger import logger
 from migrate.upgrade_function.ui_route_upgrade import ui_route_first_version
 from migrate.upgrade_function import v1_22_upgrade
 from resources.router import update_plugin_hidden
+from resources.system import system_git_commit_id
 
 # Each time you add a migration, add a version code here.
 
-VERSIONS = [
-    "0.0.0.0"
-]
-ONLY_UPDATE_DB_MODELS = [
-    "0.0.0.0"
-]
+VERSIONS = ["0.0.0.0"]
+ONLY_UPDATE_DB_MODELS = ["0.0.0.0"]
 
 
 def upgrade(version):
@@ -36,6 +33,9 @@ def recreate_ui_route():
 
 def init():
     latest_api_version, deploy_version = VERSIONS[-1], config.get("DEPLOY_VERSION")
+    if deploy_version is None:
+        deploy_version = system_git_commit_id().get("git_tag")
+
     logger.info(f"Create NexusVersion, api_version={latest_api_version}, deploy_version={deploy_version}")
     new = model.NexusVersion(api_version=latest_api_version, deploy_version=deploy_version)
     db.session.add(new)

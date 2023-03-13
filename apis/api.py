@@ -590,7 +590,7 @@ api.add_resource(project_permission.SetPermission, "/project_permission/set_perm
 
 
 # Centralized version check
-# api.add_resource(devops_version.DevOpsVersion, "/devops_version")
+api.add_resource(devops_version.DevOpsVersion, "/devops_version")
 # api.add_resource(devops_version.DevOpsVersionCheck, "/devops_version/check")
 # api.add_resource(devops_version.DevOpsVersionUpdate, "/devops_version/update")
 

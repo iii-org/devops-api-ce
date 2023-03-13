@@ -5,6 +5,8 @@ from resources.apiError import DevOpsError
 import config
 import model
 import util
+from flask_jwt_extended import jwt_required
+from flask_restful import Resource
 
 
 def set_deployment_uuid():
@@ -65,14 +67,14 @@ def __api_post(path, params=None, headers=None, data=None, with_token=True):
 def register_in_vc() -> None:
     nexus_version = model.NexusVersion.query.first()
     deploy_version, deploy_uuid = nexus_version.deploy_version, nexus_version.deployment_uuid
-    __api_post("/report_info", data={"iiidevops": {"deploy_version": deploy_version}, "uuid": deploy_uuid})
+    return __api_post("/report_info", data={"iiidevops": {"deploy_version": deploy_version}, "uuid": deploy_uuid})
 
 
 '''
 import uuid
 
-from flask_jwt_extended import jwt_required
-from flask_restful import Resource
+
+
 from sqlalchemy.sql import and_
 
 import config
@@ -234,6 +236,8 @@ def close_version_notification():
         for row in rows:
             close_notification_message(row.id)
 
+'''
+
 
 def current_devops_version():
     return model.NexusVersion.query.one().deploy_version
@@ -255,18 +259,17 @@ class DevOpsVersion(Resource):
         return util.success(get_deployment_info())
 
 
-class DevOpsVersionCheck(Resource):
-    @jwt_required()
-    def get(self):
-        role.require_admin()
-        return util.success(has_devops_update())
+# class DevOpsVersionCheck(Resource):
+#     @jwt_required()
+#     def get(self):
+#         role.require_admin()
+#         return util.success(has_devops_update())
 
 
-class DevOpsVersionUpdate(Resource):
-    @jwt_required()
-    def patch(self):
-        role.require_admin()
-        versions = has_devops_update()["latest_version"]
-        update_deployment(versions)
-        return util.success(versions)
-'''
+# class DevOpsVersionUpdate(Resource):
+#     @jwt_required()
+#     def patch(self):
+#         role.require_admin()
+#         versions = has_devops_update()["latest_version"]
+#         update_deployment(versions)
+#         return util.success(versions)

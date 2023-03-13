@@ -13,7 +13,7 @@ import util as util
 import time
 import websocket
 from flask_socketio import emit, disconnect, Namespace
-from model import db   #  remove ProjectPluginRelation ,PipelineLogsCache, Project
+from model import db  #  remove ProjectPluginRelation ,PipelineLogsCache, Project
 from nexus import nx_get_project_plugin_relation
 from resources import role
 from .gitlab import GitLab, commit_id_to_url
@@ -38,9 +38,9 @@ def pipeline_exec_action(git_repository_id: int, args: dict[str, Union[int, str]
 
 
 def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) -> dict[str, Any]:
-    """ The list sort in descending order
+    """The list sort in descending order
     :param limit: how many data per page
-    :param start: start from 
+    :param start: start from
     """
     pipelines_info, pagination = gitlab.gl_list_pipelines(git_repository_id, limit, start, with_pagination=True)
     ret = []
@@ -50,23 +50,24 @@ def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) 
         pipeline_info["commit_id"] = sha[:7]
         pipeline_info["commit_url"] = f'{pipeline_info["web_url"].split("/-/")[0]}/-/commit/{sha}'
         pipeline_info["execution_state"] = pipeline_info["status"].capitalize()
-        pipeline_info.update(gitlab.get_pipeline_jobs_status(git_repository_id, pipeline_info["id"], with_commit_msg=True))
+        pipeline_info.update(
+            gitlab.get_pipeline_jobs_status(git_repository_id, pipeline_info["id"], with_commit_msg=True)
+        )
         ret.append(pipeline_info)
-    return {
-        "pagination": pagination,
-        "pipe_execs": ret
-    }
+    return {"pagination": pagination, "pipe_execs": ret}
 
 
 def get_pipeline_job_status(repo_id: int, pipeline_id: int) -> list[dict[str, Any]]:
     jobs = gitlab.gl_pipeline_jobs(repo_id, pipeline_id)
-    ret = [{
-        "stage_id": job["id"],
-        "name": job["name"],
-        "state": job["status"].capitalize(),
-        
-    } for job in jobs]
-    return sorted(ret, key=lambda r: r['stage_id'])
+    ret = [
+        {
+            "stage_id": job["id"],
+            "name": job["name"],
+            "state": job["status"].capitalize(),
+        }
+        for job in jobs
+    ]
+    return sorted(ret, key=lambda r: r["stage_id"])
 
 
 def get_pipe_log_websocket(data):
@@ -84,32 +85,19 @@ def get_pipe_log_websocket(data):
                 first_time = False
             else:
                 ret = ""
-        
+
         if ret == "" or ws_end_time >= 600 or i >= 100:
-            emit(
-                "pipeline_log",
-                {
-                    "data": "",
-                    "repository_id": repo_id,
-                    "repo_id": job_id
-                }
-            )
+            emit("pipeline_log", {"data": "", "repository_id": repo_id, "repo_id": job_id})
+            first_time = True
             break
-        
+
         # Calculate last_index, next time emit from last_index.
         ret_list = ret.split("/n")
         ret = "/n".join(ret_list[last_index:])
         last_index = len(ret_list)
-        emit(
-            "pipeline_log",
-            {
-                "data": ret,
-                "repository_id": repo_id,
-                "repo_id": job_id
-            }
-        )   
+        emit("pipeline_log", {"data": ret, "repository_id": repo_id, "repo_id": job_id})
         i += 1
-    
+
     # self.token = self.__generate_token()
     # headersandtoken = "Authorization: Bearer {0}".format(self.token)
     # self.rc_get_project_id()
@@ -129,7 +117,7 @@ def get_pipe_log_websocket(data):
     #     # ws = websocket.create_connection(url, header=[headersandtoken], sslopt={"cert_reqs": ssl.CERT_NONE})
     #     i = 0
     #     while True:
-            
+
     #         emit(
     #             "pipeline_log",
     #             {
@@ -162,6 +150,7 @@ def get_pipe_log_websocket(data):
     #     if ws is not None:
     #         ws.close()
     #     disconnect()
+
 
 # def __rancher_pagination(rancher_output):
 #     def __url_get_marker(url):
@@ -492,9 +481,10 @@ class PipelineConfig(Resource):
         parser.add_argument("pipelines_exec_run", type=int, required=True, location="args")
         args = parser.parse_args()
         return get_pipeline_job_status(repository_id, args["pipelines_exec_run"])
-    
+
 
 # ----------------------------------------------------------------------------------------------------------------------------
+
 
 class PipelineExecLogs(Resource):
     @jwt_required()
@@ -524,7 +514,6 @@ class PipelinePhaseYaml(Resource):
     @jwt_required()
     def get(self, repository_id, branch_name):
         return get_phase_yaml(repository_id, branch_name)
-
 
 
 class Pipeline(Resource):
