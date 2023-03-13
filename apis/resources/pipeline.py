@@ -80,76 +80,20 @@ def get_pipe_log_websocket(data):
         ret = gitlab.gl_get_pipeline_console(repo_id, job_id)
         ws_end_time = time.time() - ws_start_time
 
-        if success_end_word in ret or failure_end_word in ret:
-            if first_time:
-                first_time = False
-            else:
-                ret = ""
+        if (success_end_word in ret or failure_end_word in ret) and first_time:
+            first_time = False
 
-        if ret == "" or ws_end_time >= 600 or i >= 100:
-            emit("pipeline_log", {"data": "", "repository_id": repo_id, "repo_id": job_id})
-            first_time = True
-            break
-
-        # Calculate last_index, next time emit from last_index.
-        ret_list = ret.split("/n")
-        ret = "/n".join(ret_list[last_index:])
-        last_index = len(ret_list)
-        emit("pipeline_log", {"data": ret, "repository_id": repo_id, "repo_id": job_id})
+        if ret != "":
+            # Calculate last_index, next time emit from last_index.
+            ret_list = ret.split("/n")
+            ret = "/n".join(ret_list[last_index:])
+            last_index = len(ret_list)
+        emit("pipeline_log", {"data": ret, "repository_id": repo_id, "repo_id": job_id, "final": not first_time})
         i += 1
 
-    # self.token = self.__generate_token()
-    # headersandtoken = "Authorization: Bearer {0}".format(self.token)
-    # self.rc_get_project_id()
-    # url = ("wss://{0}/{1}/project/{2}/pipelineExecutions/" "{3}-{4}/log?stage={5}&step={6}").format(
-    #     config.get("RANCHER_IP_PORT"),
-    #     config.get("RANCHER_API_VERSION"),
-    #     self.project_id,
-    #     data["ci_pipeline_id"],
-    #     data["pipelines_exec_run"],
-    #     data["stage_index"],
-    #     data["step_index"],
-    # )
-    # result = None
-    # try:
-    #     ws_start_time = time.time()
-    #     gitlab.gl_get_pipeline_console(repo_id, pipeline_id)
-    #     # ws = websocket.create_connection(url, header=[headersandtoken], sslopt={"cert_reqs": ssl.CERT_NONE})
-    #     i = 0
-    #     while True:
-
-    #         emit(
-    #             "pipeline_log",
-    #             {
-    #                 "data": result,
-    #                 "ci_pipeline_id": data["ci_pipeline_id"],
-    #                 "pipelines_exec_run": data["pipelines_exec_run"],
-    #                 "stage_index": data["stage_index"],
-    #                 "step_index": data["step_index"],
-    #             },
-    #         )
-    #         # print(f"result: {result}")
-    #         ws_end_time = time.time() - ws_start_time
-    #         if result == "" or ws_end_time >= 600 or i >= 100:
-    #             emit(
-    #                 "pipeline_log",
-    #                 {
-    #                     "data": "",
-    #                     "ci_pipeline_id": data["ci_pipeline_id"],
-    #                     "pipelines_exec_run": data["pipelines_exec_run"],
-    #                     "stage_index": data["stage_index"],
-    #                     "step_index": data["step_index"],
-    #                 },
-    #             )
-    #             ws.close()
-    #             print(f"result: {result}, ws_end_time: {ws_end_time}, i: {i}")
-    #             break
-    #         else:
-    #             i += 1
-    # except:
-    #     if ws is not None:
-    #         ws.close()
-    #     disconnect()
+        if not first_time or ws_end_time >= 600 or i >= 600:
+            i, last_index, first_time = 0, 0, True
+            break
 
 
 # def __rancher_pagination(rancher_output):
