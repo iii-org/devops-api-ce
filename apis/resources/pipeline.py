@@ -85,10 +85,19 @@ def get_pipe_log_websocket(data):
 
         if ret != "":
             # Calculate last_index, next time emit from last_index.
-            ret_list = ret.split("/n")
-            ret = "/n".join(ret_list[last_index:])
+            ret_list = ret.split("\n")
+            ret = "\n".join(ret_list[last_index:])
             last_index = len(ret_list)
-        emit("pipeline_log", {"data": ret, "repository_id": repo_id, "repo_id": job_id, "final": not first_time, "last_index": last_index})
+        emit(
+            "pipeline_log",
+            {
+                "data": ret,
+                "repository_id": repo_id,
+                "repo_id": job_id,
+                "final": not first_time,
+                "last_index": last_index,
+            },
+        )
         i += 1
 
         if not first_time or ws_end_time >= 600 or i >= 1000:
