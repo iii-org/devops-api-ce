@@ -17,8 +17,6 @@ from paramiko.rsakey import RSAKey
 from resources import logger
 
 import resources.apiError as apiError
-import boto3
-from botocore.exceptions import ClientError
 import base64
 import pandas as pd
 from marshmallow import Schema, fields
@@ -273,31 +271,6 @@ def rows_to_list(rows):
     return out
 
 
-def df_pagination(df, per_page, page):
-    pages = math.ceil(len(df) / per_page)
-    current = page
-    prev = page - 1 if page - 1 > 0 else None
-    next = page + 1 if page + 1 <= pages else None
-    total = len(df)
-    index_list = (
-        str(pd.cut([0, pages * per_page], pages).categories[page - 1]).replace("(", "").replace("]", "").split(",")
-    )
-    index_top = 0 if not prev else math.ceil(float(index_list[0]))
-    index_down = math.ceil(float(index_list[1]))
-    df = df.where(pd.notnull(df), None)
-    data = df[index_top:index_down].T.to_dict()
-    page_dict = {
-        "current": current,
-        "next": next,
-        "pages": pages,
-        "per_page": per_page,
-        "prev": prev,
-        "total": total,
-    }
-    result_list = [value for key, value in data.items()]
-    return result_list, page_dict
-
-
 def get_pagination(total_count, limit, offset):
     page = math.ceil(float(offset) / limit)
     if offset % limit == 0:
@@ -379,27 +352,6 @@ class ServiceBatchOpHelper:
                 self.outputs[service] = threads[service].join_()
             except Exception as e:
                 self.errors[service] = e
-
-
-class AWSEngine:
-    def __init__(self, access_key_id, secret_access_key):
-        self.credential = boto3.Session(
-            aws_access_key_id=access_key_id,
-            aws_secret_access_key=secret_access_key,
-        )
-        self.ec2_client = self.credential.client("ec2", "ap-northeast-1")
-        self.sts_client = self.credential.client("sts")
-
-    def get_account_id(self):
-        try:
-            account_id = self.sts_client.get_caller_identity().get("Account")
-            return account_id
-        except ClientError as e:
-            raise e
-
-    def list_regions(self):
-        response = self.ec2_client.describe_regions()
-        return [context["RegionName"] for context in response["Regions"]]
 
 
 def get_certain_date_from_now(days):
