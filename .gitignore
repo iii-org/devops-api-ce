@@ -13,3 +13,5 @@ pj_edit_pipe_yaml
 deploy-config
 devops-data
 apis/sync.ffs_db
+Pipfile
+Pipfile.lock
