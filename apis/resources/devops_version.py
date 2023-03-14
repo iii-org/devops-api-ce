@@ -64,12 +64,12 @@ def __api_post(path, params=None, headers=None, data=None, with_token=True):
     return __api_request("POST", path, headers=headers, data=data, params=params, with_token=with_token)
 
 
-def register_in_vc() -> None:
+def register_in_vc(force_update: bool = False) -> None:
     from resources.system import system_git_commit_id
 
     nexus_version = model.NexusVersion.query.first()
     deploy_version, deploy_uuid = nexus_version.deploy_version, nexus_version.deployment_uuid
-    if deploy_version is None:
+    if deploy_version is None or force_update:
         deploy_version = system_git_commit_id().get("git_tag")
         nexus_version.deploy_version = deploy_version
         model.db.session.commit()
