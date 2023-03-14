@@ -9,12 +9,13 @@ import re
 import werkzeug
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
-from flask import Flask
+from flask import Flask, has_app_context
 from flask_apispec.extension import FlaskApiSpec
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, Api, reqparse
 from flask_socketio import SocketIO
+from celery import Celery
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database
 from werkzeug.routing import IntegerConverter
@@ -32,6 +33,7 @@ import routine_job
 import util
 from jsonwebtoken import jsonwebtoken
 from model import db
+from celerys.celery_config import celery_config
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import (
     project,
@@ -160,6 +162,58 @@ class SignedIntConverter(IntegerConverter):
 app.url_map.converters["sint"] = SignedIntConverter
 
 
+## Celery
+
+"""
+Worker: worker is responsible for executing tasks asynchronously.
+Beat: beat is responsible for scheduling periodic tasks.
+"""
+app.config.update(
+    CELERY_CONFIG={
+        "broker_url": f"redis://{config.get('REDIS_BASE_URL')}",
+        "result_backend": f"redis://{config.get('REDIS_BASE_URL')}",
+    }
+)
+
+
+class FlaskCelery(Celery):
+    def __init__(self, *args, **kwargs):
+
+        super(FlaskCelery, self).__init__(*args, **kwargs)
+        self.conf.update(app.config["CELERY_CONFIG"])
+        self.conf.update(celery_config)
+        self.patch_task()
+
+        if "app" in kwargs:
+            self.init_app(kwargs["app"])
+
+    def patch_task(self):
+        TaskBase = self.Task
+        _celery = self
+
+        class ContextTask(TaskBase):
+            abstract = True
+
+            def __call__(self, *args, **kwargs):
+                if has_app_context():
+                    return TaskBase.__call__(self, *args, **kwargs)
+                else:
+                    with _celery.app.app_context():
+                        return TaskBase.__call__(self, *args, **kwargs)
+
+        self.Task = ContextTask
+
+    def init_app(self, app):
+        self.app = app
+        self.config_from_object(app.config)
+
+
+celery = FlaskCelery()
+celery.init_app(app)
+db.init_app(app)
+db.app = app
+
+
 @app.errorhandler(Exception)
 def internal_error(exception):
     if type(exception) is NoResultFound:
@@ -279,10 +333,6 @@ def initialize(db_uri):
 
 router_url(api, add_resource)
 
-# Git
-# api.add_resource(project.GitRepoIdToCiPipeId, "/git_repo_id_to_ci_pipe_id/<repository_id>")
-# api.add_resource(project.GitRepoIdToCiPipeIdV2, "/v2/git_repo_id_to_ci_pipe_id/<repository_id>")
-# add_resource(project.GitRepoIdToCiPipeIdV2, "private")
 
 # Projects
 api.add_resource(starred_project.StarredProject, "/project/<sint:project_id>/star")
@@ -292,10 +342,6 @@ api.add_resource(
     "/project/issues_commit_by_name",
 )
 api.add_resource(pipeline.PipelineFile, "/project/<string:project_name>/pipeline_file")
-
-
-# App
-# api.add_resource(project.AllPodsAndServicesUnderApp, "/project/<sint:project_id>/app/<app_name>")
 
 
 # Project son relation
@@ -694,8 +740,8 @@ def login():
 
 def start_prod():
     try:
-        db.init_app(app)
-        db.app = app
+        # db.init_app(app)
+        # db.app = app
         jsonwebtoken.init_app(app)
         initialize(config.get("SQLALCHEMY_DATABASE_URI"))
         migrate.run()
