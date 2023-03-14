@@ -228,10 +228,9 @@ def login(args):
                 )
                 save_last_login(user)
                 return util.success({"status": status, "token": token, "ad_info": ad_info})
-        else:
-            return util.respond(
-                401, "Error when logging in.", error=apiError.wrong_password()
-            )
+        return util.respond(
+            401, "Error when logging in.", error=apiError.wrong_password()
+        )
     except Exception as e:
         raise DevOpsError(
             500, "Error when user login.", error=apiError.uncaught_exception(e)
