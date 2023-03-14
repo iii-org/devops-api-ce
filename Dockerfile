@@ -5,7 +5,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
-RUN echo "lite-0.0.1" > git_tag
+RUN echo "lite-0.0.2" > git_tag
 RUN git rev-parse HEAD > git_commit
 RUN git log -1 --date=iso8601 --format="%ad" > git_date
 #ENTRYPOINT ["apis/gunicorn.sh"]
