@@ -1196,7 +1196,7 @@ def delete_issue(issue_id, delete_excalidraw=False):
 def get_issue_datetime_status(project_id:str) -> dict[str, int]:
     kwargs = {}
     no_due_date_num, expire_num, normal_num= 0, 0, 0
-    issues_list= get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
+    issues_list = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
     issue_info={'id':[], 'start_date':[], 'due_date':[]}
     for issue_ in issues_list:
         if issue_['is_closed'] == False:
@@ -1206,8 +1206,9 @@ def get_issue_datetime_status(project_id:str) -> dict[str, int]:
 
     total_num = len(issue_info['id'])
     for issue_due_date in issue_info.get('due_date', []):
-        if issue_due_date is not None:
+        if issue_due_date is None :
             no_due_date_num += 1
+        if issue_due_date is not None:
             expire_num += 1 if issue_due_date < str(date.today()) else None
             normal_num += 1 if issue_due_date > str(date.today()) else None
 
