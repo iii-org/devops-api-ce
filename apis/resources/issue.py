@@ -1257,7 +1257,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
     try:
         nx_project = NexusProject().set_project_id(project_id)
         nx_issue_params["nx_project"] = nx_project
-        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id  #??? 不太懂用途
     except NoResultFound:
         raise DevOpsError(
             404,
@@ -1787,7 +1787,7 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
     for issue in redmine_issues:
         if args.get("due_date_status"):
             due_date = args["due_date_status"]
-            df_due_date, bool_has_due_date, bool_no_due_date = has_or_no_due_date(issue)
+            dt_due_date, bool_has_due_date, bool_no_due_date = has_or_no_due_date(issue)
             if due_date == "null":
                 if bool_has_due_date:
                     continue
@@ -1795,15 +1795,15 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
                 if bool_no_due_date:
                     continue
                 else:
-                    df_check = df_due_date[1] > df_due_date["now"]
-                    if df_check.iloc[0]:
+                    df_check = dt_due_date['due_date'] > dt_due_date["now"]
+                    if df_check:
                         continue
             elif due_date == "normal":
                 if bool_no_due_date:
                     continue
                 else:
-                    df_check = df_due_date[1] < df_due_date["now"]
-                    if df_check.iloc[0]:
+                    df_check = dt_due_date['due_date'] < dt_due_date["now"]
+                    if df_check:
                         continue
         if issue.status.id in issue_status:
             output[issue.status.name] += 1
@@ -1812,12 +1812,13 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
 
 
 def has_or_no_due_date(issue):
-    df = pd.DataFrame(issue)
-    df_due_date = df[(df[0] == "due_date")]
-    df_due_date["now"] = str(date.today())
-    bool_has_due_date = df_due_date[1].notnull().iloc[0]
-    bool_no_due_date = df_due_date[1].isnull().iloc[0]
-    return df_due_date, bool_has_due_date, bool_no_due_date
+    dt = dict (issue)
+    dt_due_date = {'due_date': None, 'now':None}
+    dt_due_date['due_date'] = dt['due_date'] 
+    dt_due_date['now'] = str(date.today())
+    bool_has_due_date = True if  dt_due_date['due_date'] is not None else False
+    bool_no_due_date = True if dt_due_date['due_date'] is None else False
+    return dt_due_date, bool_has_due_date, bool_no_due_date
 
 
 def calculate_issue_statistics(filters, issue_status, output_keys, output, args=None):
@@ -2520,106 +2521,106 @@ def pj_download_file_is_exist(project_id):
     }
 
 
-class DownloadIssueAsExcel:
-    def __init__(self, args, priority_id, user_id):
-        self.result = []
-        self.levels = args.pop("levels")
-        self.deploy_column = args.pop("deploy_column")
-        self.args = args
-        self.project_id = priority_id
-        self.__get_operator_id(user_id)
+# class DownloadIssueAsExcel:
+#     def __init__(self, args, priority_id, user_id):
+#         self.result = []
+#         self.levels = args.pop("levels")
+#         self.deploy_column = args.pop("deploy_column")
+#         self.args = args
+#         self.project_id = priority_id
+#         self.__get_operator_id(user_id)
 
-    def __get_operator_id(self, user_id):
-        self.operator_id = model.UserPluginRelation.query.filter_by(user_id=user_id).one().plan_user_id
-        self.user_name = model.User.query.get(int(user_id)).login
+#     def __get_operator_id(self, user_id):
+#         self.operator_id = model.UserPluginRelation.query.filter_by(user_id=user_id).one().plan_user_id
+#         self.user_name = model.User.query.get(int(user_id)).login
 
-    def execute(self):
-        try:
-            logger.logger.info("Start writing issues into excel.")
-            self.__update_lock_download_issues(is_lock=True, sync_date=self.__now_time())
-            self.__append_main_issue()
-            self.__update_lock_download_issues(is_lock=False, sync_date=self.__now_time())
-            logger.logger.info("Writing complete")
-        except Exception as e:
-            logger.logger.exception(str(e))
-            self.__update_lock_download_issues(is_lock=False, sync_date=None)
+#     def execute(self):
+#         try:
+#             logger.logger.info("Start writing issues into excel.")
+#             self.__update_lock_download_issues(is_lock=True, sync_date=self.__now_time())
+#             self.__append_main_issue()
+#             self.__update_lock_download_issues(is_lock=False, sync_date=self.__now_time())
+#             logger.logger.info("Writing complete")
+#         except Exception as e:
+#             logger.logger.exception(str(e))
+#             self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
-    def __now_time(self):
-        return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+#     def __now_time(self):
+#         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-    def __append_main_issue(self):
-        print(self.args)
-        output = get_issue_list_by_project_helper(
-            self.project_id, self.args, download=True, operator_id=self.operator_id
-        )
-        for index, value in enumerate(output):
-            row = self.__generate_row_issue_for_excel(str(index + 1), value)
-            self.result.append(row)
-            self.__append_children(index + 1, value, 1)
+#     def __append_main_issue(self):
+#         print(self.args)
+#         output = get_issue_list_by_project_helper(
+#             self.project_id, self.args, download=True, operator_id=self.operator_id
+#         )
+#         for index, value in enumerate(output):
+#             row = self.__generate_row_issue_for_excel(str(index + 1), value)
+#             self.result.append(row)
+#             self.__append_children(index + 1, value, 1)
 
-        self.__download_as_excel()
+#         self.__download_as_excel()
 
-    def __append_children(self, super_index, value, level):
-        if not value["has_children"] or self.levels == level:
-            return
-        redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(
-            value["id"], include=["children"]
-        )
-        children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True))
-        for index, child in enumerate(children):
-            row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
-            self.result.append(row)
-            self.__append_children(f"{super_index}_{index+1}", child, level + 1)
+#     def __append_children(self, super_index, value, level):
+#         if not value["has_children"] or self.levels == level:
+#             return
+#         redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(
+#             value["id"], include=["children"]
+#         )
+#         children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True))
+#         for index, child in enumerate(children):
+#             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
+#             self.result.append(row)
+#             self.__append_children(f"{super_index}_{index+1}", child, level + 1)
 
-    def __generate_row_issue_for_excel(self, index, value):
-        english = len(re.findall(r"[\u4e00-\u9fff]+", self.deploy_column[0]["display"])) == 0
-        result = {"index": index} if english else {"項次": index}
-        for column in self.deploy_column:
-            if column["field"] == "name":
-                result.update({column["display"]: value["name"]})
-            if column["field"] == "tracker" and not english:
-                result.update({column["display"]: TRACKER_TRANSLATE[value["tracker"]["name"]]})
-            elif column["field"] == "tracker" and english:
-                result.update({column["display"]: value["tracker"]["name"]})
+#     def __generate_row_issue_for_excel(self, index, value):
+#         english = len(re.findall(r"[\u4e00-\u9fff]+", self.deploy_column[0]["display"])) == 0
+#         result = {"index": index} if english else {"項次": index}
+#         for column in self.deploy_column:
+#             if column["field"] == "name":
+#                 result.update({column["display"]: value["name"]})
+#             if column["field"] == "tracker" and not english:
+#                 result.update({column["display"]: TRACKER_TRANSLATE[value["tracker"]["name"]]})
+#             elif column["field"] == "tracker" and english:
+#                 result.update({column["display"]: value["tracker"]["name"]})
 
-            if column["field"] == "status" and not english:
-                result.update({column["display"]: STATUS_TRANSLATE[value["status"]["name"]]})
-            elif column["field"] == "status" and english:
-                result.update({column["display"]: value["status"]["name"]})
+#             if column["field"] == "status" and not english:
+#                 result.update({column["display"]: STATUS_TRANSLATE[value["status"]["name"]]})
+#             elif column["field"] == "status" and english:
+#                 result.update({column["display"]: value["status"]["name"]})
 
-            if column["field"] == "fixed_version":
-                result.update(
-                    {column["display"]: value["fixed_version"]["name"] if value["fixed_version"] != {} else ""}
-                )
-            if column["field"] == "StartDate":
-                result.update({column["display"]: value["start_date"]})
-            if column["field"] == "EndDate":
-                result.update({column["display"]: value["due_date"]})
-            if column["field"] == "priority" and not english:
-                result.update({column["display"]: PRIORITY_TRANSLATE[value["priority"]["name"]]})
-            elif column["field"] == "priority" and english:
-                result.update({column["display"]: value["priority"]["name"]})
+#             if column["field"] == "fixed_version":
+#                 result.update(
+#                     {column["display"]: value["fixed_version"]["name"] if value["fixed_version"] != {} else ""}
+#                 )
+#             if column["field"] == "StartDate":
+#                 result.update({column["display"]: value["start_date"]})
+#             if column["field"] == "EndDate":
+#                 result.update({column["display"]: value["due_date"]})
+#             if column["field"] == "priority" and not english:
+#                 result.update({column["display"]: PRIORITY_TRANSLATE[value["priority"]["name"]]})
+#             elif column["field"] == "priority" and english:
+#                 result.update({column["display"]: value["priority"]["name"]})
 
-            if column["field"] == "assigned_to":
-                result.update({column["display"]: value["assigned_to"]["name"] if value["assigned_to"] != {} else ""})
-            if column["field"] == "DoneRatio":
-                result.update({column["display"]: value["done_ratio"]})
-            if column["field"] == "points":
-                result.update({column["display"]: value.get("point", 0)})
-        return result
+#             if column["field"] == "assigned_to":
+#                 result.update({column["display"]: value["assigned_to"]["name"] if value["assigned_to"] != {} else ""})
+#             if column["field"] == "DoneRatio":
+#                 result.update({column["display"]: value["done_ratio"]})
+#             if column["field"] == "points":
+#                 result.update({column["display"]: value.get("point", 0)})
+#         return result
 
-    def __download_as_excel(self):
-        if not os.path.isdir("./logs/project_excel_file"):
-            os.makedirs("./logs/project_excel_file", exist_ok=True)
-        util.write_in_excel(f"logs/project_excel_file/{self.project_id}.xlsx", self.result)
+#     def __download_as_excel(self):
+#         if not os.path.isdir("./logs/project_excel_file"):
+#             os.makedirs("./logs/project_excel_file", exist_ok=True)
+#         util.write_in_excel(f"logs/project_excel_file/{self.project_id}.xlsx", self.result)
 
-    def __update_lock_download_issues(self, is_lock=None, sync_date=None):
-        lock_redmine = model.Lock.query.filter_by(name="download_pj_issues").first()
-        if is_lock is not None:
-            lock_redmine.is_lock = is_lock
-        if sync_date is not None:
-            lock_redmine.sync_date = sync_date
-        db.session.commit()
+#     def __update_lock_download_issues(self, is_lock=None, sync_date=None):
+#         lock_redmine = model.Lock.query.filter_by(name="download_pj_issues").first()
+#         if is_lock is not None:
+#             lock_redmine.is_lock = is_lock
+#         if sync_date is not None:
+#             lock_redmine.sync_date = sync_date
+#         db.session.commit()
 
 
 @record_activity(ActionType.MODIFY_HOOK)
@@ -3213,7 +3214,7 @@ class ExecuteIssueAlert(Resource):
 
 
 class DatetimeStatusV2(MethodResource):
-    @doc(tags=["Issue"], description="get issue datetime status.")
+    @doc(tags=["Issue"], description="get issue datetime status.", summary="回傳專案的議題總數及時程")
     @marshal_with(route_model.DateTimeStatusGetRes)
     @jwt_required()
     def get(self, project_id):

@@ -26,7 +26,7 @@ from resources.issue import (
     create_custom_issue_filter,
     put_custom_issue_filter,
     get_lock_status,
-    DownloadIssueAsExcel,
+    # DownloadIssueAsExcel,
     pj_download_file_is_exist,
 )
 from resources import project, user, version, wiki, release
@@ -259,7 +259,7 @@ class IssueByStatusByProject(Resource):
         role.require_in_project(project_id)
         return get_issue_by_status_by_project(project_id)
 
-
+ 
 @doc(tags=["Issue"], description="Get issue Progress by tree by project")
 @use_kwargs(router_model.IssuesProgressByProjectSchema, location="query")
 @marshal_with(router_model.IssuesProgressByProjectResponse)
@@ -461,93 +461,93 @@ class IssueFilterByProject(Resource):
 ##### Download project issue as excel ######
 
 
-class DownloadProjectExecuteV2(MethodResource):
-    # download/execute
-    @doc(tags=["Issue"], description="Execute download project's issues as excel.")
-    @use_kwargs(router_model.DownloadProjectSchema, location="form")
-    @marshal_with(util.CommonResponse)
-    @jwt_required()
-    def post(self, project_id, **kwargs):
-        if get_lock_status("download_pj_issues")["is_lock"]:
-            return util.success("previous is still running")
-        download_issue_excel = DownloadIssueAsExcel(kwargs, project_id, get_jwt_identity()["user_id"])
-        threading.Thread(target=download_issue_excel.execute).start()
-        return util.success()
+# class DownloadProjectExecuteV2(MethodResource):
+#     # download/execute
+#     @doc(tags=["Issue"], description="Execute download project's issues as excel.")
+#     @use_kwargs(router_model.DownloadProjectSchema, location="form")
+#     @marshal_with(util.CommonResponse)
+#     @jwt_required()
+#     def post(self, project_id, **kwargs):
+#         if get_lock_status("download_pj_issues")["is_lock"]:
+#             return util.success("previous is still running")
+#         download_issue_excel = DownloadIssueAsExcel(kwargs, project_id, get_jwt_identity()["user_id"])
+#         threading.Thread(target=download_issue_excel.execute).start()
+#         return util.success()
 
 
-class DownloadProjectIsExistV2(MethodResource):
-    # download/is_exist
-    @doc(tags=["Issue"], description="Check excel file is exist.")
-    @marshal_with(router_model.DownloadProjectIsExistResponse)
-    @jwt_required()
-    def get(self, project_id):
-        return util.success(pj_download_file_is_exist(project_id))
+# class DownloadProjectIsExistV2(MethodResource):
+#     # download/is_exist
+#     @doc(tags=["Issue"], description="Check excel file is exist.")
+#     @marshal_with(router_model.DownloadProjectIsExistResponse)
+#     @jwt_required()
+#     def get(self, project_id):
+#         return util.success(pj_download_file_is_exist(project_id))
 
 
-class DownloadProjectV2(MethodResource):
-    # download/execute
-    @doc(tags=["Issue"], description="Download project's issues' excel.")
-    @jwt_required()
-    def patch(self, project_id):
-        if not pj_download_file_is_exist(project_id)["file_exist"]:
-            raise apiError.DevOpsError(
-                404,
-                "This file can not be downloaded because it is not exist.",
-                apiError.project_issue_file_not_exits(project_id),
-            )
+# class DownloadProjectV2(MethodResource):
+#     # download/execute
+#     @doc(tags=["Issue"], description="Download project's issues' excel.")
+#     @jwt_required()
+#     def patch(self, project_id):
+#         if not pj_download_file_is_exist(project_id)["file_exist"]:
+#             raise apiError.DevOpsError(
+#                 404,
+#                 "This file can not be downloaded because it is not exist.",
+#                 apiError.project_issue_file_not_exits(project_id),
+#             )
 
-        return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
+#         return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
 
 
-class DownloadProject(Resource):
-    # download/execute
-    @jwt_required()
-    def post(self, project_id):
-        parser = reqparse.RequestParser()
-        parser.add_argument("fixed_version_id", type=str)
-        parser.add_argument("status_id", type=str)
-        parser.add_argument("tracker_id", type=str)
-        parser.add_argument("assigned_to_id", type=str)
-        parser.add_argument("priority_id", type=str)
-        parser.add_argument("only_superproject_issues", type=bool, default=False)
-        parser.add_argument("search", type=str)
-        parser.add_argument("selection", type=str)
-        parser.add_argument("sort", type=str)
-        parser.add_argument("parent_id", type=str)
-        parser.add_argument("due_date_start", type=str)
-        parser.add_argument("due_date_end", type=str)
-        parser.add_argument("with_point", type=bool, default=True)
-        parser.add_argument("tags", type=str)
-        parser.add_argument("levels", type=int, default=3)
-        parser.add_argument("deploy_column", type=dict, action="append", required=True)
-        args = parser.parse_args()
+# class DownloadProject(Resource):
+#     # download/execute
+#     @jwt_required()
+#     def post(self, project_id):
+#         parser = reqparse.RequestParser()
+#         parser.add_argument("fixed_version_id", type=str)
+#         parser.add_argument("status_id", type=str)
+#         parser.add_argument("tracker_id", type=str)
+#         parser.add_argument("assigned_to_id", type=str)
+#         parser.add_argument("priority_id", type=str)
+#         parser.add_argument("only_superproject_issues", type=bool, default=False)
+#         parser.add_argument("search", type=str)
+#         parser.add_argument("selection", type=str)
+#         parser.add_argument("sort", type=str)
+#         parser.add_argument("parent_id", type=str)
+#         parser.add_argument("due_date_start", type=str)
+#         parser.add_argument("due_date_end", type=str)
+#         parser.add_argument("with_point", type=bool, default=True)
+#         parser.add_argument("tags", type=str)
+#         parser.add_argument("levels", type=int, default=3)
+#         parser.add_argument("deploy_column", type=dict, action="append", required=True)
+#         args = parser.parse_args()
+#         print('Done')
+#         if get_lock_status("download_pj_issues")["is_lock"]:
+#             return util.success("previous is still running")
 
-        if get_lock_status("download_pj_issues")["is_lock"]:
-            return util.success("previous is still running")
+#         # Because QA not the member of any project, so it will get error when it get issue by user_id.
+#         user_id = get_jwt_identity()["user_id"] if get_jwt_identity()["role_id"] != 7 else 1
 
-        # Because QA not the member of any project, so it will get error when it get issue by user_id.
-        user_id = get_jwt_identity()["user_id"] if get_jwt_identity()["role_id"] != 7 else 1
+#         download_issue_excel = DownloadIssueAsExcel(args, project_id, user_id)
+#         threading.Thread(target=download_issue_excel.execute).start()
+#         return util.success()
 
-        download_issue_excel = DownloadIssueAsExcel(args, project_id, user_id)
-        threading.Thread(target=download_issue_excel.execute).start()
-        return util.success()
+#     # download/is_exist
+#     @jwt_required()
+#     def get(self, project_id):
+#         return util.success(pj_download_file_is_exist(project_id))
 
-    # download/is_exist
-    @jwt_required()
-    def get(self, project_id):
-        return util.success(pj_download_file_is_exist(project_id))
+#     # download/execute
+#     @jwt_required()
+#     def patch(self, project_id):
+#         if not pj_download_file_is_exist(project_id)["file_exist"]:
+#             raise apiError.DevOpsError(
+#                 404,
+#                 "This file can not be downloaded because it is not exist.",
+#                 apiError.project_issue_file_not_exits(project_id),
+#             )
 
-    # download/execute
-    @jwt_required()
-    def patch(self, project_id):
-        if not pj_download_file_is_exist(project_id)["file_exist"]:
-            raise apiError.DevOpsError(
-                404,
-                "This file can not be downloaded because it is not exist.",
-                apiError.project_issue_file_not_exits(project_id),
-            )
-
-        return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
+#         return send_file(f"../logs/project_excel_file/{project_id}.xlsx")
 
 
 ##### List project ######

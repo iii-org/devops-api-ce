@@ -400,9 +400,9 @@ def check_folder_exist(path, create=False):
     return exist
 
 
-def write_in_excel(file_path, content):
-    df = pd.DataFrame(content)
-    df.to_excel(file_path, index=False)
+    # def write_in_excel(file_path, content):
+    #     df = pd.DataFrame(content)
+    #     df.to_excel(file_path, index=False)
 
 
 def is_json(content):
