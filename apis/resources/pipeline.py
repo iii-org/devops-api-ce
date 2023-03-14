@@ -28,13 +28,15 @@ gitlab = GitLab()
 
 def pipeline_exec_action(git_repository_id: int, args: dict[str, Union[int, str]]) -> None:
     """
-    :param args: must provide: action[rerun, stop] & pipelines_exec_run(job_id)
+    :param args: must provide: action[create, rerun, stop] & pipelines_exec_run(job_id)
     """
     action, job_id = args["action"], args["pipelines_exec_run"]
     if action == "rerun":
         return gitlab.gl_rerun_pipeline_job(git_repository_id, job_id)
     elif action == "stop":
         return gitlab.gl_stop_pipeline_job(git_repository_id, job_id)
+    elif action == "create":
+        return gitlab.gl_create_pipeline(git_repository_id, job_id)
 
 
 def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) -> dict[str, Any]:
@@ -420,7 +422,7 @@ class PipelineExecAction(Resource):
     @jwt_required()
     def post(self, repository_id):
         parser = reqparse.RequestParser()
-        parser.add_argument("pipelines_exec_run", type=int, required=True)
+        parser.add_argument("pipelines_exec_run", type=str, required=True)
         parser.add_argument("action", type=str, required=True)
         args = parser.parse_args()
         return pipeline_exec_action(repository_id, args)

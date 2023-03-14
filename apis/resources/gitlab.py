@@ -908,6 +908,9 @@ class GitLab(object):
     def gl_rerun_pipeline_job(self, repo_id: int, job_id: int):
         return self.__api_post(f"/projects/{repo_id}/pipelines/{job_id}/retry").json()
 
+    def gl_create_pipeline(self, repo_id: int, branch: str):
+        return self.__api_post(f"/projects/{repo_id}/pipeline", {"ref": branch}).json()
+
     def gl_stop_pipeline_job(self, repo_id: int, job_id: int):
         return self.__api_post(f"/projects/{repo_id}/pipelines/{job_id}/cancel").json()
 
