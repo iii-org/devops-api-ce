@@ -32,9 +32,9 @@ def pipeline_exec_action(git_repository_id: int, args: dict[str, Union[int, str]
     """
     action, job_id = args["action"], args["pipelines_exec_run"]
     if action == "rerun":
-        gitlab.gl_rerun_pipeline_job(git_repository_id, job_id)
+        return gitlab.gl_rerun_pipeline_job(git_repository_id, job_id)
     elif action == "stop":
-        gitlab.gl_stop_pipeline_job(git_repository_id, job_id)
+        return gitlab.gl_stop_pipeline_job(git_repository_id, job_id)
 
 
 def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) -> dict[str, Any]:
