@@ -18,7 +18,6 @@ from resources import logger
 
 import resources.apiError as apiError
 import base64
-import pandas as pd
 from marshmallow import Schema, fields
 
 

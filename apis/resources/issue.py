@@ -5,7 +5,6 @@ from datetime import datetime, date, timedelta
 from distutils.util import strtobool
 from typing import Optional
 
-import pandas as pd
 from flask_socketio import Namespace, emit, join_room, leave_room
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from flask_restful import Resource, reqparse

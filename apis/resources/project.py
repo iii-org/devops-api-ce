@@ -47,7 +47,6 @@ from flask_apispec.views import MethodResource
 from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
-import pandas as pd
 
 
 """
