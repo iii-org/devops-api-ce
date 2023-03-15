@@ -336,6 +336,12 @@ def create_project(user_id, args):
             db.session.add(new_father_son_relation)
             db.session.commit()
 
+        # 加關聯project_share_group
+        gitlab_gp_id = gitlab.get_group_id_for_name(config.get("ADMIN_GROUP"))
+        if gitlab_gp_id is None:
+            gitlab_gp_id = gitlab.gl_create_group(config.get("ADMIN_GROUP"))["id"]
+        gitlab.gl_project_share_maintainer_group(gitlab_pj_id, gitlab_gp_id)
+
         # 加關聯project_user_role
         project_add_member(project_id, owner_id)
         if owner_id != user_id:

@@ -31,6 +31,7 @@ from resources.mail import mail_server_is_open
 from resources.notification_message import create_notification_message
 import secrets
 import base64
+import config
 
 # Make a regular expression
 default_role_id = 3
@@ -803,7 +804,13 @@ def create_user(args):
         raise e
     gitlab_user_id = git_user["id"]
     logger.info(f"Gitlab user created, id={gitlab_user_id}")
-
+    if is_admin:
+        # 加 role to admin_group
+        gitlab_gp_id = gitlab.get_group_id_for_name(config.get("ADMIN_GROUP"))
+        if gitlab_gp_id is None:
+            gitlab_gp_id = gitlab.gl_create_group(config.get("ADMIN_GROUP"))["id"]
+        gitlab.gl_group_add_maintainer(gitlab_gp_id, gitlab_user_id)
+        logger.info(f"Gitlab user add to admin_group, group_id={gitlab_gp_id}, user_id={gitlab_user_id}.")
     # Sonarqube user create
     # Caution!! Sonarqube cannot delete a user, can only deactivate
     try:

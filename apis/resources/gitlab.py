@@ -53,7 +53,7 @@ from resources.notification_message import (
 
 GITLAB_NOTFOUND = exceptions
 GITLAB_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
-iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog"]
+iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog", config.get("ADMIN_GROUP")]
 
 """
 1. Gitlab domain name might need to write /etc/hosts
@@ -61,6 +61,17 @@ iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-c
 2. Gitlab adjust ip / domain mode(change k8s ingress)
 """
 
+Maintainer = 40
+"""
+    access_level:
+    # No access (0)
+    # Minimal access (5)
+    # Guest (10)
+    # Reporter (20)
+    # Developer (30)
+    # Maintainer (40)
+    # Owner (50)
+"""
 
 def get_nexus_project_id(repo_id):
     row = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first()
@@ -208,6 +219,29 @@ class GitLab(object):
 
     def gl_delete_project(self, repo_id):
         return self.__api_delete(f"/projects/{repo_id}")
+
+    def gl_create_group(self, group_name):
+        return self.__api_post(f"/groups", params={"name": group_name, "path": group_name}).json()
+
+    def gl_group_add_maintainer(self, group_id, user_id):
+        return self.__api_post(
+            f"/groups/{group_id}/members", params={"id": group_id, "user_id": user_id, "access_level": Maintainer}
+        ).json()
+
+    def gl_list_groups(self):
+        return self.__api_get(f"/groups").json()
+
+    def get_group_id_for_name(self, group_name):
+        group_list = self.gl_list_groups()
+        for group in group_list:
+            if group.get("name") == group_name:
+                return group.get("id")
+        return None
+
+    def gl_project_share_maintainer_group(self, repo_id: int, group_id: int):
+        return self.__api_post(
+            f"/projects/{repo_id}/share", params={"id": repo_id, "group_id": group_id, "group_access": Maintainer}
+        )
 
     def gl_create_user(self, args, user_source_password, is_admin=False):
         data = {
