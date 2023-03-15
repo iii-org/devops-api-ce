@@ -33,7 +33,7 @@ import routine_job
 import util
 from jsonwebtoken import jsonwebtoken
 from model import db
-from celerys.celery_config import celery_config
+from celeries.celery_config import celery_config
 from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import (
     project,
@@ -168,26 +168,19 @@ app.url_map.converters["sint"] = SignedIntConverter
 Worker: worker is responsible for executing tasks asynchronously.
 Beat: beat is responsible for scheduling periodic tasks.
 """
-app.config.update(
-    CELERY_CONFIG={
-        "broker_url": f"redis://{config.get('REDIS_BASE_URL')}",
-        "result_backend": f"redis://{config.get('REDIS_BASE_URL')}",
-    }
-)
 
 
 class FlaskCelery(Celery):
     def __init__(self, *args, **kwargs):
 
         super(FlaskCelery, self).__init__(*args, **kwargs)
-        self.conf.update(app.config["CELERY_CONFIG"])
         self.conf.update(celery_config)
         self.patch_task()
 
         if "app" in kwargs:
             self.init_app(kwargs["app"])
 
-    def patch_task(self):
+    def patch_task(self) -> Celery.Task:
         TaskBase = self.Task
         _celery = self
 
@@ -203,7 +196,7 @@ class FlaskCelery(Celery):
 
         self.Task = ContextTask
 
-    def init_app(self, app):
+    def init_app(self, app: Flask) -> None:
         self.app = app
         self.config_from_object(app.config)
 
@@ -326,8 +319,6 @@ def initialize(db_uri):
     migrate.init()
     my_uuid = devops_version.set_deployment_uuid()
     logger.logger.info(f"Deployment UUID set as {my_uuid}.")
-    devops_version.login()
-    devops_version.register_in_vc()
     logger.logger.info("Server initialized.")
 
 
@@ -740,16 +731,9 @@ def login():
 
 def start_prod():
     try:
-        # db.init_app(app)
-        # db.app = app
         jsonwebtoken.init_app(app)
         initialize(config.get("SQLALCHEMY_DATABASE_URI"))
         migrate.run()
-        # kubernetesClient.create_iiidevops_env_secret_namespace()
-        # with app.app_context():  # Prevent error appear(Working outside of application context.)
-        #     kubernetesClient.create_cron_secret()
-
-        # threading.Thread(target=kubernetesClient.apply_cronjob_yamls).start()
         logger.logger.info("Apply k8s-yaml cronjob.")
 
         # Template init
