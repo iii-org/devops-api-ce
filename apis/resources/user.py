@@ -29,7 +29,7 @@ from sqlalchemy import desc, nullslast
 import gitlab as gitlab_pack
 from resources.mail import mail_server_is_open
 from resources.notification_message import create_notification_message
-import random
+import secrets
 import base64
 
 # Make a regular expression
@@ -85,9 +85,7 @@ class NexusUser:
         raise DevOpsError(
             500,
             "This user does not have project -1 role.",
-            error=apiError.invalid_code_path(
-                "This user does not have project -1 role."
-            ),
+            error=apiError.invalid_code_path("This user does not have project -1 role."),
         )
 
     def fill_dummy_user(self):
@@ -123,9 +121,7 @@ def get_role_id(user_id):
     if row is not None:
         return row.role_id
     else:
-        raise apiError.DevOpsError(
-            404, "Error while getting role id", apiError.user_not_found(user_id)
-        )
+        raise apiError.DevOpsError(404, "Error while getting role id", apiError.user_not_found(user_id))
 
 
 def to_redmine_role_id(role_id):
@@ -161,9 +157,7 @@ def jwt_response_data(id, login, role_id, from_ad):
 
 def get_access_token(id, login, role_id, from_ad=True):
     expires = get_token_expires(role_id)
-    token = create_access_token(
-        identity=jwt_response_data(id, login, role_id, from_ad), expires_delta=expires
-    )
+    token = create_access_token(identity=jwt_response_data(id, login, role_id, from_ad), expires_delta=expires)
     return token
 
 
@@ -178,11 +172,7 @@ def verify_password(db_password, login_password):
 
 
 def check_db_login(user, password, output):
-    project_user_role = (
-        db.session.query(model.ProjectUserRole)
-        .filter(model.ProjectUserRole.user_id == user.id)
-        .first()
-    )
+    project_user_role = db.session.query(model.ProjectUserRole).filter(model.ProjectUserRole.user_id == user.id).first()
     is_password_verify, hex_login_password = verify_password(user.password, password)
     output["hex_password"] = hex_login_password
     output["from_ad"] = user.from_ad
@@ -199,9 +189,7 @@ def check_db_login(user, password, output):
 def login(args):
     login_account = args["username"]
     login_password = args["password"]
-    user = (
-        db.session.query(model.User).filter(model.User.login == login_account).first()
-    )
+    user = db.session.query(model.User).filter(model.User.login == login_account).first()
     try:
         ad_info = {"is_pass": False, "login": login_account, "data": {}}
 
@@ -216,25 +204,17 @@ def login(args):
         # Check User in DB
         if user is not None:
             db_info["connect"] = True
-            db_info, user, project_user_role = check_db_login(
-                user, login_password, db_info
-            )
+            db_info, user, project_user_role = check_db_login(user, login_password, db_info)
 
-        # Login By Database
+            # Login By Database
             if db_info["is_pass"] is True and db_info["from_ad"] is False:
                 status = "DB Login"
-                token = get_access_token(
-                    user.id, user.login, project_user_role.role_id, user.from_ad
-                )
+                token = get_access_token(user.id, user.login, project_user_role.role_id, user.from_ad)
                 save_last_login(user)
                 return util.success({"status": status, "token": token, "ad_info": ad_info})
-        return util.respond(
-            401, "Error when logging in.", error=apiError.wrong_password()
-        )
+        return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
-        raise DevOpsError(
-            500, "Error when user login.", error=apiError.uncaught_exception(e)
-        )
+        raise DevOpsError(500, "Error when user login.", error=apiError.uncaught_exception(e))
 
 
 def user_forgot_password(args):
@@ -264,22 +244,14 @@ def update_user(user_id, args, from_ad=False):
     res = {"error": "did't get password"}
     if args.get("password") is not None:
         if args["old_password"] == args["password"]:
-            return util.respond(
-                400, "Password is not changed.", error=apiError.wrong_password()
-            )
+            return util.respond(400, "Password is not changed.", error=apiError.wrong_password())
         # Only Update password from ad trigger or syadmin can skip verify password
         if role.ADMIN.id != user_role_id and not from_ad:
-            is_password_verify, hex_login_password = verify_password(
-                user.password, args["old_password"]
-            )
+            is_password_verify, hex_login_password = verify_password(user.password, args["old_password"])
             if args["old_password"] is None:
-                return util.respond(
-                    400, "old_password is empty", error=apiError.wrong_password()
-                )
+                return util.respond(400, "old_password is empty", error=apiError.wrong_password())
             if is_password_verify is False:
-                return util.respond(
-                    400, "Password is incorrect", error=apiError.wrong_password()
-                )
+                return util.respond(400, "Password is incorrect", error=apiError.wrong_password())
         res = update_external_passwords(user_id, args["password"], args["old_password"])
         h = SHA256.new()
         h.update(args["password"].encode())
@@ -320,9 +292,7 @@ def update_user(user_id, args, from_ad=False):
             user.update_at = util.date_to_str(datetime.datetime.utcnow())
 
         if user.from_ad and not from_ad:
-            return util.respond(
-                400, "Error when updating Message", error=apiError.user_from_ad(user_id)
-            )
+            return util.respond(400, "Error when updating Message", error=apiError.user_from_ad(user_id))
         db.session.commit()
         # Putting here to avoid not commit session error
         if args.get("status") is not None:
@@ -338,7 +308,7 @@ def update_user_role(user_id, role_id):
 
 
 def update_external_passwords(user_id, new_pwd, old_pwd):
-    DEFAULT_AD_PASSWORD = f"IIIdevops{random.randrange(10000, 99999)}"
+    DEFAULT_AD_PASSWORD = f"IIIdevops{secrets.SystemRandom().randrange(10000, 99999)}"
     login_account = model.User.query.filter_by(id=user_id).first().login
     try:
         user_login = nx_get_user(id=user_id).login
@@ -359,9 +329,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
             arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, "redmine")
             create_notification_message(arg, user_id=user_id)
             # update db
-            row = model.UpdatePasswordError.query.filter_by(
-                user_id=user_id, server="redmine"
-            ).first()
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="redmine").first()
             encode_password = base64.b64encode(f"{DEFAULT_AD_PASSWORD}".encode("UTF-8"))
             if row:
                 update = {
@@ -370,9 +338,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                     "password": encode_password.decode("UTF-8"),
                     "created_at": datetime.datetime.utcnow(),
                 }
-                db.session.query(model.UpdatePasswordError).filter_by(
-                    user_id=user_id, server="redmine"
-                ).update(update)
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="redmine").update(update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
@@ -393,9 +359,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
             arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, "gitlab")
             create_notification_message(arg, user_id=user_id)
             # update db
-            row = model.UpdatePasswordError.query.filter_by(
-                user_id=user_id, server="gitlab"
-            ).first()
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="gitlab").first()
             encode_password = base64.b64encode(f"{DEFAULT_AD_PASSWORD}".encode("UTF-8"))
             if row:
                 update = {
@@ -404,9 +368,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                     "password": encode_password.decode("UTF-8"),
                     "created_at": datetime.datetime.utcnow(),
                 }
-                db.session.query(model.UpdatePasswordError).filter_by(
-                    user_id=user_id, server="gitlab"
-                ).update(update)
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="gitlab").update(update)
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
@@ -426,9 +388,7 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
             arg = generate_arg(DEFAULT_AD_PASSWORD, user_id, "sonarqube")
             create_notification_message(arg, user_id=user_id)
             # update db
-            row = model.UpdatePasswordError.query.filter_by(
-                user_id=user_id, server="sonarqube"
-            ).first()
+            row = model.UpdatePasswordError.query.filter_by(user_id=user_id, server="sonarqube").first()
             encode_password = base64.b64encode(f"{DEFAULT_AD_PASSWORD}".encode("UTF-8"))
             if row:
                 update = {
@@ -437,9 +397,9 @@ def update_external_passwords(user_id, new_pwd, old_pwd):
                     "password": encode_password.decode("UTF-8"),
                     "created_at": datetime.datetime.utcnow(),
                 }
-                db.session.query(model.UpdatePasswordError).filter_by(
-                    user_id=user_id, server="sonarqube"
-                ).update(update)
+                db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server="sonarqube").update(
+                    update
+                )
                 db.session.commit()
             else:
                 insert = model.UpdatePasswordError(
@@ -591,14 +551,12 @@ def update_newpassword(user_id, kwargs):
             if int(result.status_code / 100) == 2:
                 valid = True
         if valid:
-            encode_password = base64.b64encode(
-                f"{kwargs.get('new_pwd')}".encode("UTF-8")
-            )
+            encode_password = base64.b64encode(f"{kwargs.get('new_pwd')}".encode("UTF-8"))
             print(encode_password.decode("UTF-8"))
             update = {"password": encode_password.decode("UTF-8")}
-            db.session.query(model.UpdatePasswordError).filter_by(
-                user_id=user_id, server=kwargs.get("server")
-            ).update(update)
+            db.session.query(model.UpdatePasswordError).filter_by(user_id=user_id, server=kwargs.get("server")).update(
+                update
+            )
             db.session.commit()
         result_dict = {"valid": valid, "msg": msg}
         return msg, valid
@@ -609,9 +567,7 @@ def update_newpassword(user_id, kwargs):
 def update_external_email(user_id, user_name, new_email):
     user_relation = nx_get_user_plugin_relation(user_id=user_id)
     if user_relation is None:
-        return util.respond(
-            400, "Error when updating email", error=apiError.user_not_found(user_id)
-        )
+        return util.respond(400, "Error when updating email", error=apiError.user_not_found(user_id))
     redmine_user_id = user_relation.plan_user_id
     redmine.rm_update_email(redmine_user_id, new_email)
 
@@ -619,9 +575,7 @@ def update_external_email(user_id, user_name, new_email):
     gitlab.gl_update_email(gitlab_user_id, new_email)
 
     gitlab_user_email_list = gitlab.gl_get_user_email(gitlab_user_id).json()
-    need_to_delete_email = [
-        email["id"] for email in gitlab_user_email_list if email["email"] != new_email
-    ]
+    need_to_delete_email = [email["id"] for email in gitlab_user_email_list if email["email"] != new_email]
     for gitlab_email_id in need_to_delete_email:
         gitlab.gl_delete_user_email(gitlab_user_id, gitlab_email_id)
 
@@ -663,6 +617,7 @@ def try_to_delete(delete_method, obj):
 @record_activity(ActionType.DELETE_USER)
 def delete_user(user_id):
     from resources.project import get_project_list
+
     if user_id == 1:
         raise apiError.NotAllowedError("You cannot delete the system admin.")
     pj_list = get_project_list(user_id)
@@ -731,10 +686,7 @@ def create_user(args):
     # Check if name is valid
     login_name = args["login"]
     force = args.get("force", False)
-    if (
-        re.fullmatch(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$", login_name)
-        is None
-    ):
+    if re.fullmatch(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$", login_name) is None:
         raise apiError.DevOpsError(
             400,
             "Error when creating new user",
@@ -752,15 +704,12 @@ def create_user(args):
     if (
         need_password_check is True
         and re.fullmatch(
-            r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])"
-            r"^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$",
+            r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])" r"^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$",
             user_source_password,
         )
         is None
     ):
-        raise apiError.DevOpsError(
-            400, "Error when creating new user", error=apiError.invalid_user_password()
-        )
+        raise apiError.DevOpsError(400, "Error when creating new user", error=apiError.invalid_user_password())
     logger.info("Password is valid.")
 
     # Check DB has this login, email, if has, raise error
@@ -912,17 +861,13 @@ def create_user(args):
         logger.info(f"Nexus user_plugin built.")
 
         # insert project_user_role
-        rol = model.ProjectUserRole(
-            project_id=-1, user_id=user_id, role_id=args["role_id"]
-        )
+        rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args["role_id"])
         db.session.add(rol)
         db.session.commit()
         logger.info(f"Nexus user project_user_role created.")
 
         # insert user_message_type
-        row = model.UserMessageType(
-            user_id=user_id, teams=False, notification=True, mail=False
-        )
+        row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=False)
         db.session.add(row)
         db.session.commit()
         logger.info(f"Nexus user_message_type created.")
@@ -944,14 +889,10 @@ def create_user(args):
 def user_list(filters):
     per_page = 10
     page_dict = None
-    query = model.User.query.filter(model.User.id != 1).order_by(
-        nullslast(model.User.last_login.desc())
-    )
+    query = model.User.query.filter(model.User.id != 1).order_by(nullslast(model.User.last_login.desc()))
     if "role_ids" in filters:
         filtered_user_ids = (
-            model.ProjectUserRole.query.filter(
-                model.ProjectUserRole.role_id.in_(filters["role_ids"])
-            )
+            model.ProjectUserRole.query.filter(model.ProjectUserRole.role_id.in_(filters["role_ids"]))
             .with_entities(model.ProjectUserRole.user_id)
             .distinct()
             .subquery()
@@ -967,9 +908,7 @@ def user_list(filters):
     if "per_page" in filters:
         per_page = filters["per_page"]
     if "page" in filters:
-        paginate_query = query.paginate(
-            page=filters["page"], per_page=per_page, error_out=False
-        )
+        paginate_query = query.paginate(page=filters["page"], per_page=per_page, error_out=False)
         page_dict = {
             "current": paginate_query.page,
             "prev": paginate_query.prev_num,
@@ -1064,11 +1003,7 @@ def save_last_login(user):
 
 
 def get_am_role_user():
-    rows = (
-        ProjectUserRole.query.filter_by(role_id=5)
-        .with_entities(ProjectUserRole.user_id)
-        .distinct()
-    )
+    rows = ProjectUserRole.query.filter_by(role_id=5).with_entities(ProjectUserRole.user_id).distinct()
     return [row.user_id for row in rows]
 
 
@@ -1088,9 +1023,7 @@ def get_user_message_types(limit=None, offset=None):
     ret, page_dict = [], None
     users_message_type = UserMessageType.query
     if limit is not None and offset is not None:
-        users_message_type, page_dict = util.orm_pagination(
-            users_message_type, limit, offset
-        )
+        users_message_type, page_dict = util.orm_pagination(users_message_type, limit, offset)
 
     for user_message_type in users_message_type.all():
         ret.append(row_to_dict(user_message_type))

@@ -1,6 +1,6 @@
 import json
 import os
-import random
+import secrets
 import string
 import time
 import math
@@ -245,15 +245,11 @@ def decode_k8s_sa(string):
 
 
 def get_random_alphanumeric_string(letters_count_each, digits_count):
-    sample_str = "".join((random.choice(string.ascii_lowercase) for _ in range(letters_count_each)))
-    sample_str += "".join((random.choice(string.ascii_uppercase) for _ in range(letters_count_each)))
-    sample_str += "".join((random.choice(string.digits) for _ in range(digits_count)))
-
-    # Convert string to list and shuffle it to mix letters and digits
-    sample_list = list(sample_str)
-    random.shuffle(sample_list)
-    final_string = "".join(sample_list)
-    return final_string
+    # Secrets is more recommended insecure functions
+    sample_str = "".join((secrets.choice(string.ascii_lowercase) for _ in range(letters_count_each)))
+    sample_str += "".join((secrets.choice(string.ascii_uppercase) for _ in range(letters_count_each)))
+    sample_str += "".join((secrets.choice(string.digits) for _ in range(digits_count)))
+    return sample_str
 
 
 def rows_to_list(rows):
@@ -397,7 +393,6 @@ def check_folder_exist(path, create=False):
     if not exist and create:
         os.makedirs(path)
     return exist
-
 
     # def write_in_excel(file_path, content):
     #     df = pd.DataFrame(content)
