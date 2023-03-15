@@ -4,7 +4,6 @@ import config
 # https://docs.celeryq.dev/en/v5.2.7/userguide/configuration.html#configuration
 # https://github.com/miguelgrinberg/Flask-SocketIO/issues/361
 
-# CELERY_TASK_SERIALIZER = "json"
 
 """
 beat: celery -A apis.api.celery beat -l INFO -s /tmp/celerybeat-schedule

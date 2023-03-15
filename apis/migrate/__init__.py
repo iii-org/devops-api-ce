@@ -115,4 +115,5 @@ def run():
                 logger.info("Upgrade to {0}".format(version))
                 upgrade(version)
     except Exception as e:
+        logger.exception(str(e))
         raise e

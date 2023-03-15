@@ -12,7 +12,7 @@ from typing import Optional
 from accessories import redmine_lib
 from flask import send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask_restful import Resource, reqparse
+
 from sqlalchemy import desc, or_
 from sqlalchemy.orm import Query, joinedload
 from sqlalchemy.exc import NoResultFound
@@ -280,82 +280,7 @@ def create_project(user_id, args):
     gitlab_pj_ssh_url = output["ssh_url_to_repo"]
     gitlab_pj_http_url = output["http_url_to_repo"]
     sonarqube.sq_create_project(args["name"], args.get("display"))
-    # services = ["redmine", "gitlab", "sonarqube"]
-    # targets = {
-    #     "redmine": redmine.rm_create_project,
-    #     "gitlab": gitlab.gl_create_project,
-    #     "sonarqube": sonarqube.sq_create_project,
-    # }
-    # service_args = {
-    #     "redmine": (args,),
-    #     "gitlab": (args,),
-    #     "sonarqube": (args["name"], args.get("display")),
-    # }
-    # helper = util.ServiceBatchOpHelper(services, targets, service_args)
-    # helper.run()
-
-    # 先取出已成功的專案建立 id，以便之後可能的回溯需求
-    # redmine_pj_id = None
-    # gitlab_pj_id = None
-    # gitlab_pj_name = None
-    # gitlab_pj_ssh_url = None
-    # gitlab_pj_http_url = None
     project_name = args["name"]
-
-    # for service in services:
-    #     if helper.errors[service] is None:
-    #         output = helper.outputs[service]
-    #         if service == "redmine":
-    #             redmine_pj_id = output["project"]["id"]
-    #         elif service == "gitlab":
-    #             gitlab_pj_id = output["id"]
-    #             gitlab_pj_name = output["name"]
-    #             gitlab_pj_ssh_url = output["ssh_url_to_repo"]
-    #             gitlab_pj_http_url = output["http_url_to_repo"]
-
-    # # 如果不是全部都成功，rollback
-    # if any(helper.errors.values()):
-    #     for service in services:
-    #         if helper.errors[service] is None:
-    #             if service == "redmine":
-    #                 redmine.rm_delete_project(redmine_pj_id)
-    #             elif service == "gitlab":
-    #                 gitlab.gl_delete_project(gitlab_pj_id)
-    #             elif service == "sonarqube":
-    #                 sonarqube.sq_delete_project(project_name)
-
-    #     # 丟出服務序列在最前的錯誤
-    #     for service in services:
-    #         e = helper.errors[service]
-    #         if e is not None:
-    #             if service == "redmine":
-    #                 status_code = e.status_code
-    #                 resp = e.unpack_response()
-    #                 if status_code == 422 and "errors" in resp:
-    #                     if len(resp["errors"]) > 0:
-    #                         if resp["errors"][0] == "Identifier has already been taken":
-    #                             raise DevOpsError(
-    #                                 status_code,
-    #                                 "Redmine already used this identifier.",
-    #                                 error=apiError.identifier_has_been_taken(args["name"]),
-    #                             )
-    #                 raise e
-    #             elif service == "gitlab":
-    #                 status_code = e.status_code
-    #                 gitlab_json = e.unpack_response()
-    #                 if status_code == 400:
-    #                     try:
-    #                         if gitlab_json["message"]["name"][0] == "has already been taken":
-    #                             raise DevOpsError(
-    #                                 status_code,
-    #                                 {"gitlab": gitlab_json},
-    #                                 error=apiError.identifier_has_been_taken(args["name"]),
-    #                             )
-    #                     except (KeyError, IndexError):
-    #                         pass
-    #                 raise e
-    #             else:
-    #                 raise e
     try:
         project_id = None
         uuids = uuid.uuid1().hex
@@ -502,7 +427,6 @@ def create_bot(project_id):
     user_id = u["user_id"]
     project_add_member(project_id, user_id)
     git_user_id = u["repository_user_id"]
-
 
 
 @record_activity(ActionType.UPDATE_PROJECT)

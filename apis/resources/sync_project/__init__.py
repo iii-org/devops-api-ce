@@ -17,6 +17,7 @@ from resources.activity import ActionType, record_activity
 
 # remove list = check_k8s_ns, k8s_namespace_process,
 
+
 class ResourceMembers(object):
     def __init__(self):
         self.all_users = defaultdict(list)
@@ -25,8 +26,6 @@ class ResourceMembers(object):
     def set_all_members(self):
         self.all_users["rm_all_users_id"] = [context["id"] for context in redmine_lib.redmine.user.all()]
         self.all_users["gl_all_users_id"] = [context["id"] for context in self.handle_gl_user_page()]
-        # self.all_users["hb_all_users_id"] = [context["user_id"] for context in self.handle_hb_user_page()]
-        # self.all_users["k8s_all_users_sa"] = kubernetesClient.list_service_account()
         self.all_users["sq_all_users_login"] = [context["login"] for context in self.handle_sq_user_page()]
 
     def set_projects_members(self, pj_name, pj_relation):
@@ -37,12 +36,6 @@ class ResourceMembers(object):
         ]
         self.project_members["gl_members_id"] = [
             context["id"] for context in self.handle_gl_user_page(pj_relation.git_repository_id)
-        ]
-        # self.project_members["hb_members_id"] = [
-        #     context["entity_id"] for context in self.handle_hb_user_page(pj_relation.harbor_project_id)
-        # ]
-        self.project_members["k8s_members_name"] = [
-            context.metadata.name for context in kubernetesClient.list_role_binding_in_namespace(pj_name).items
         ]
         self.project_members["sq_members_name"] = [context["login"] for context in self.handle_sq_user_page(pj_name)]
 
@@ -143,8 +136,6 @@ def members_process(projects_name):
             for user_relation in result:
                 check_rm_members(pj_relation, user_relation, rc_members.all_users["rm_all_users_id"])
                 check_gl_members(pj_relation, user_relation, rc_members.all_users["gl_all_users_id"])
-                # check_hb_members(pj_relation, user_relation, rc_members.all_users["hb_all_users_id"])
-                check_k8s_members(pj, user_relation, rc_members.all_users["k8s_all_users_sa"])
                 check_sq_members(pj, user_relation, rc_members.all_users["sq_all_users_login"])
 
 
@@ -203,21 +194,6 @@ def check_hb_members(pj_relation, user_relation, hb_all_users_id):
         )
         harbor.hb_add_member(pj_relation.harbor_project_id, user_relation.harbor_user_id)
 """
-
-
-def check_k8s_members(pj, user_relation, k8s_all_users_sa):
-    sa_name = "{0}-rb".format(user_relation.kubernetes_sa_name)
-    if user_relation.kubernetes_sa_name not in k8s_all_users_sa:
-        logger.logger.info(f"User k8s sa {user_relation.kubernetes_sa_name} not found in k8s.")
-        return
-    elif sa_name not in rc_members.project_members["k8s_members_name"]:
-        logger.logger.info(
-            f"User sa {user_relation.kubernetes_sa_name} not found "
-            f"in k8s namespace {pj.name} "
-            f'members {rc_members.project_members["k8s_members_name"]}.'
-        )
-        logger.logger.info(f"Adding user {user_relation.kubernetes_sa_name} to k8s namespace {pj.name}.")
-        kubernetesClient.create_role_binding(pj.name, user_relation.kubernetes_sa_name)
 
 
 def check_sq_members(pj, user_relation, sq_all_users_login):
@@ -290,8 +266,6 @@ def check_sq_pj(projects_name):
     sq_pj = list(set(projects_name) - set(sonarqube_projects))
     nexus_pj = [nexus.nx_get_project(name=name) for name in sq_pj]
     return nexus_pj
-
-
 
 
 def check_pipeline_hooks():
@@ -381,19 +355,6 @@ def create_harbor_project(args):
 """
 
 
-def k8s_namespace_waiter(project_name):
-    count = 0
-    while count <= 30:
-        try:
-            kubernetesClient.get_namespace(project_name)
-        except Exception:
-            count += 1
-            continue
-        break
-    if count > 30:
-        logger.logger.info(f"K8s client get namespace {project_name} error for exceeding 30 times.")
-
-
 def redmine_process(projects_name, check_bot_list):
     rm_pj = check_rm_pj(projects_name)
     if rm_pj:
@@ -465,11 +426,12 @@ def pipeline_process(check_bot_list):
             check_bot_list.append(pj_row.id)
 
 
-def bot_process(check_bot_list, project_id):
-    login = f"project_bot_{project_id}"
-    row = model.User.query.filter_by(login=login).first()
-    if not row:
-        project.create_bot(project_id)
+def bot_process(check_bot_list, project_id=None):
+    if project_id is not None:
+        login = f"project_bot_{project_id}"
+        row = model.User.query.filter_by(login=login).first()
+        if not row:
+            project.create_bot(project_id)
     if check_bot_list:
         logger.logger.info(f"BOT project id to check: {check_bot_list}.")
         for nx_project_id in check_bot_list:

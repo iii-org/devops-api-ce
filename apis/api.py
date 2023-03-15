@@ -66,7 +66,6 @@ if config.get("DEBUG") is False:
 # This import will merge to the above one after all API move to V2.
 # from urls import monitoring
 
-# from urls.harbor import harbor_url
 from urls.issue import issue_url
 from urls.lock import lock_url
 from urls.notification_message import notification_message_url
@@ -125,7 +124,6 @@ def add_resource(classes, level):
 
 
 app.config["PROPAGATE_EXCEPTIONS"] = True
-# app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_pre_ping": True,
     "pool_recycle": 60,
@@ -251,17 +249,13 @@ class NexusVersion(Resource):
     def _check(check: str) -> str:
         error: apiError.DevOpsError = apiError.DevOpsError(400, "api_version is not valid")
         # check regex only digit and dot
-        if re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None:
-            # Check string is only 'develop'
-            if check.lower() != "develop":
-                raise error
+        if re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None and check.lower() != "develop":
+            raise error
 
         return check
 
 
 def initialize(db_uri):
-    if database_exists(db_uri):
-        return
     logger.logger.info("Initializing...")
     logger.logger.info(f"db_url is {db_uri}")
     if config.get("DEBUG"):
@@ -561,29 +555,6 @@ api.add_resource(redmine.RedmineMailActive, "/mail/active")
 
 system_url(api, add_resource)
 
-# Mocks
-# api.add_resource(mock.MockTestResult, '/mock/test_summary')
-# api.add_resource(mock.MockSesame, '/mock/sesame')
-# api.add_resource(mock.UserDefaultFromAd, '/mock/userdefaultad')
-
-# Harbor
-# harbor_url(api, add_resource)
-
-# Maintenance
-# api.add_resource(maintenance.UpdateDbRcProjectPipelineId, "/maintenance/update_rc_pj_pipe_id")
-# api.add_resource(
-#     maintenance.SecretesIntoRcAll,
-#     "/maintenance/secretes_into_rc_all",
-#     "/maintenance/secretes_into_rc_all/<secret_name>",
-# )
-# api.add_resource(
-#     maintenance.RegistryIntoRcAll,
-#     "/maintenance/registry_into_rc_all",
-#     "/maintenance/registry_into_rc_all/<registry_name>",
-# )
-# api.add_resource(maintenance.UpdatePjHttpUrl, "/maintenance/update_pj_http_url")
-
-
 # Activity
 api.add_resource(activity.AllActivities, "/all_activities")
 api.add_resource(activity.ProjectActivities, "/project/<sint:project_id>/activities")
@@ -601,97 +572,18 @@ api.add_resource(project_permission.SubadminProjects, "/project_permission/subad
 api.add_resource(project_permission.Subadmins, "/project_permission/subadmins")
 api.add_resource(project_permission.SetPermission, "/project_permission/set_permission")
 
-# Quality
-# api.add_resource(quality.TestPlanList, "/quality/<int:project_id>/testplan_list")
-# api.add_resource(quality.TestPlan,
-#                  '/quality/<int:project_id>/testplan/<int:testplan_id>')
-# api.add_resource(quality.TestFileByTestPlan, "/quality/<int:project_id>/testfile_by_testplan/<int:testplan_id>")
-# api.add_resource(quality.TestFileList, "/quality/<int:project_id>/testfile_list")
-# api.add_resource(
-#     quality.TestFile,
-#     "/quality/<int:project_id>/testfile/<software_name>",
-#     "/quality/<int:project_id>/testfile/<software_name>/<test_file_name>",
-# )
-# api.add_resource(
-#     quality.TestPlanWithTestFile,
-#     "/quality/<int:project_id>/testplan_with_testfile",
-#     "/quality/<int:project_id>/testplan_with_testfile/<int:item_id>",
-# )
-# api.add_resource(quality.Report, "/quality/<int:project_id>/report")
-
-# # System versions
-# api.add_resource(NexusVersion, "/system_versions")
-
-# sync_projects_url(api, add_resource)
-# sync_users_url(api, add_resource)
-
 
 # Centralized version check
 api.add_resource(devops_version.DevOpsVersion, "/devops_version")
 # api.add_resource(devops_version.DevOpsVersionCheck, "/devops_version/check")
 # api.add_resource(devops_version.DevOpsVersionUpdate, "/devops_version/update")
 
-"""
-# Deploy
-api.add_resource(deploy.Clusters, "/deploy/clusters")
-api.add_resource(deploy.Cluster, "/deploy/clusters/<int:cluster_id>")
-api.add_resource(deploy.Registries, "/deploy/registries")
-api.add_resource(deploy.Registry, "/deploy/registries/<int:registry_id>")
 
-api.add_resource(deploy.ReleaseApplication, "/deploy/release/<int:release_id>")
-
-api.add_resource(deploy.Applications, "/deploy/applications")
-api.add_resource(deploy.Application, "/deploy/applications/<int:application_id>")
-# 20230215 為新增 application_header table 而新增下列一段程式
-api.add_resource(deploy.ApplicationHeaders, "/deploy/app_headers")
-api.add_resource(deploy.ApplicationHeader, "/deploy/app_headers/<int:app_header_id>")
-api.add_resource(deploy.DeleteApplicationHeader, "/deploy/app_headers/<int:app_header_id>/<int:application_id>")
-# 20230215 為新增 application_header table 而新增上列一段程式
-
-api.add_resource(deploy.RedeployApplication, "/deploy/applications/<int:application_id>/redeploy")
-
-api.add_resource(deploy.UpdateApplication, "/deploy/applications/<int:application_id>/update")
-
-api.add_resource(deploy.Cronjob, "/deploy/applications/cronjob")
-
-# 20230118 新增下列API程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
-api.add_resource(deploy.Deployment, "/deploy/applications/deployment/<int:application_id>")
-# 20230118 新增上列API程式，以解決因遠端機器不存在造成TIMEOUT使得無法取得APPLICATION的資料列表
-# 20230118 為取得 storage class 資訊而新增下列API
-api.add_resource(deploy.StorageClass, "/deploy/clusters/storage/<int:cluster_id>")
-# 20230118 為取得 storage class 資訊而新增上列API
-# 20230201 為變更 storage class disabled 布林值而新增下列API
-api.add_resource(deploy.UpdateStorageClass, "/deploy/storage/<int:storage_class_id>")
-# 20230201 為變更 storage class disabled 布林值而新增上列API
-# 20230202 為取得 persistent volume claim 資訊而新增下列API
-api.add_resource(deploy.PersistentVolumeClaim, "/deploy/clusters/storage/pvc/<int:storage_class_id>")
-# 20230202 為取得 persistent volume claim 資訊而新增上列API
-"""
 # Alert
 api.add_resource(alert.ProjectAlert, "/project/<sint:project_id>/alert")
 api.add_resource(alert.ProjectAlertUpdate, "/alert/<int:alert_id>")
 api.add_resource(alert.DefaultAlertDaysUpdate, "/alert/default_days")
 
-"""
-# Trace Order
-api.add_resource(trace_order.TraceOrders, "/trace_order")
-api.add_resource(trace_order.TraceOrdersV2, "/v2/trace_order")
-add_resource(trace_order.TraceOrdersV2, "private")
-
-api.add_resource(trace_order.SingleTraceOrder, "/trace_order/<sint:trace_order_id>")
-api.add_resource(trace_order.SingleTraceOrderV2, "/v2/trace_order/<sint:trace_order_id>")
-add_resource(trace_order.SingleTraceOrderV2, "private")
-
-api.add_resource(trace_order.ExecuteTraceOrder, "/trace_order/execute")
-api.add_resource(trace_order.ExecuteTraceOrderV2, "/v2/trace_order/execute")
-add_resource(trace_order.ExecuteTraceOrderV2, "private")
-
-api.add_resource(trace_order.GetTraceResult, "/trace_order/result")
-api.add_resource(trace_order.GetTraceResultV2, "/v2/trace_order/result")
-add_resource(trace_order.GetTraceResultV2, "private")
-"""
-# monitoring
-# monitoring.monitoring_url(api, add_resource)
 
 # System parameter
 sync_system_parameter_url(api, add_resource)
@@ -732,7 +624,9 @@ def login():
 def start_prod():
     try:
         jsonwebtoken.init_app(app)
-        initialize(config.get("SQLALCHEMY_DATABASE_URI"))
+        db_uri = config.get("SQLALCHEMY_DATABASE_URI")
+        if not database_exists(db_uri):
+            initialize(db_uri)
         migrate.run()
         logger.logger.info("Apply k8s-yaml cronjob.")
 
