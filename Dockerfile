@@ -5,5 +5,5 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
-RUN echo "lite-0.0.3" > git_tag && git rev-parse HEAD > git_commit && git log -1 --date=iso8601 --format="%ad" > git_date
+RUN echo "lite-0.0.4" > git_tag && git rev-parse HEAD > git_commit && git log -1 --date=iso8601 --format="%ad" > git_date
 CMD ["python", "apis/api.py"]
