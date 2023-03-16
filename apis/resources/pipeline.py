@@ -55,6 +55,9 @@ def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) 
         pipeline_info.update(
             gitlab.get_pipeline_jobs_status(git_repository_id, pipeline_info["id"], with_commit_msg=True)
         )
+        # It can not get commit message when all jobs is failed.
+        if not pipeline_info["commit_message"]:
+            pipeline_info["commit_message"] = gitlab.single_commit(git_repository_id, sha)["title"]
         ret.append(pipeline_info)
     return {"pagination": pagination, "pipe_execs": ret}
 

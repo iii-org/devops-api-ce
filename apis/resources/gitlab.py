@@ -913,12 +913,10 @@ class GitLab(object):
         return page
 
     # pipeline
-    def gl_list_pipelines(self, repo_id: int, limit: int, start: int, sort: str = "desc", with_pagination: bool = False) -> list[dict[str, Any]]:
-        params={
-            "page": self.__gl_start_convert_page(start, limit),
-            "per_page": limit,
-            "sort": sort
-        }
+    def gl_list_pipelines(
+        self, repo_id: int, limit: int, start: int, sort: str = "desc", with_pagination: bool = False
+    ) -> list[dict[str, Any]]:
+        params = {"page": self.__gl_start_convert_page(start, limit), "per_page": limit, "sort": sort}
         ret = self.__api_get(f"/projects/{repo_id}/pipelines", params=params)
         results = ret.json()
         if not with_pagination:
@@ -932,7 +930,6 @@ class GitLab(object):
             "next": int(headers.get("X-Next-Page") or 0),
             "pages": int(headers.get("X-Total-Pages") or 0),
             "per_page": limit,
-
         }
         return results, pagination
 
@@ -955,21 +952,12 @@ class GitLab(object):
         jobs = self.gl_pipeline_jobs(repo_id, pipeline_id)
         total = len(jobs)
         success = len([job for job in jobs if job["status"] == "success"])
-        ret = {
-            "status": {
-                "total": total,
-                "success": success
-            }     
-        }
+        ret = {"status": {"total": total, "success": success}}
         if with_commit_msg:
-            commit_message = jobs[0]["commit"]["title"]
-            ret.update({
-                "commit_message": commit_message
-            })
+            commit_message = jobs[0].get("commit", {}).get("title", "") if jobs else ""
+            ret.update({"commit_message": commit_message})
         return ret
 
-        
-        
 
 def single_file(
     file_path: str,
@@ -1829,4 +1817,3 @@ class GitlabSourceCodeV2(MethodResource):
 #     @jwt_required()
 #     def post(self, repository_id, job_id):
 #         return util.success(gitlab.gl_stop_pipeline_job(repository_id, job_id))
-    
