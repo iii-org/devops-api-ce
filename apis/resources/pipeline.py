@@ -36,7 +36,7 @@ def pipeline_exec_action(git_repository_id: int, args: dict[str, Union[int, str]
     elif action == "stop":
         return gitlab.gl_stop_pipeline_job(git_repository_id, pipeline_id)
     elif action == "create":
-        return gitlab.gl_create_pipeline(git_repository_id, branch)
+        return gitlab.create_pipeline(git_repository_id, branch)
 
 
 def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) -> dict[str, Any]:
@@ -304,7 +304,7 @@ class Pipeline(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("branch", type=str, required=True, location="form")
         args = parser.parse_args()
-        gitlab.gl_create_pipeline(repository_id, args["branch"])
+        gitlab.create_pipeline(repository_id, args["branch"])
         return util.success()
 
 

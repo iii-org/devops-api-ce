@@ -560,6 +560,7 @@ class GitLab(object):
         """
         return self.__api_delete(f"/projects/{repo_id}/repository/tags/{tag_name}")
 
+    # Commit
     def gl_get_commits(self, project_id, branch, per_page=100, page=1, since=None):
         return self.__api_get(
             f"/projects/{project_id}/repository/commits",
@@ -569,6 +570,12 @@ class GitLab(object):
                 "since": since,
                 "page": page,
             },
+        ).json()
+
+    def create_commit(self, project_id, branch, commit_message, actions=[]):
+        return self.__api_post(
+            f"/projects/{project_id}/repository/commits",
+            data={"branch": branch, "commit_message": commit_message, "actions": actions},
         ).json()
 
     def gl_get_commits_by_author(self, project_id, branch, filter=None):
@@ -915,9 +922,19 @@ class GitLab(object):
 
     # pipeline
     def gl_list_pipelines(
-        self, repo_id: int, limit: int, start: int, sort: str = "desc", with_pagination: bool = False
+        self,
+        repo_id: int,
+        limit: int,
+        start: int,
+        branch: str = None,
+        sort: str = "desc",
+        with_pagination: bool = False,
     ) -> list[dict[str, Any]]:
+
         params = {"page": self.__gl_start_convert_page(start, limit), "per_page": limit, "sort": sort}
+        if branch is not None:
+            params["ref"] = branch
+
         ret = self.__api_get(f"/projects/{repo_id}/pipelines", params=params)
         results = ret.json()
         if not with_pagination:
@@ -966,6 +983,12 @@ class GitLab(object):
             commit_message = jobs[0].get("commit", {}).get("title", "") if jobs else ""
             ret.update({"commit_message": commit_message})
         return ret
+
+    def create_pipeline(self, repo_id: int, branch: str):
+        latest_pipeline_info = self.gl_list_pipelines(repo_id=repo_id, limit=1, start=0, branch=branch)[0]
+        sha = latest_pipeline_info["sha"]
+        commit_msg = self.single_commit(repo_id, sha)["title"]
+        return self.create_commit(repo_id, branch, commit_msg)
 
 
 def single_file(
