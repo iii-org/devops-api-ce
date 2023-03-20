@@ -73,6 +73,7 @@ Maintainer = 40
     # Owner (50)
 """
 
+
 def get_nexus_project_id(repo_id):
     row = model.ProjectPluginRelation.query.filter_by(git_repository_id=repo_id).first()
     if row:
@@ -933,25 +934,33 @@ class GitLab(object):
         }
         return results, pagination
 
+    def gl_get_single_pipeline(self, repo_id: int, pipeline_id: int):
+        return self.__api_get(f"/projects/{repo_id}/pipelines/{pipeline_id}").json()
+
     def gl_get_pipeline_console(self, repo_id: int, job_id: int):
         return self.__api_get(f"/projects/{repo_id}/jobs/{job_id}/trace").content.decode("utf-8")
 
-    def gl_rerun_pipeline_job(self, repo_id: int, job_id: int):
-        return self.__api_post(f"/projects/{repo_id}/pipelines/{job_id}/retry").json()
+    def gl_rerun_pipeline_job(self, repo_id: int, pipeline_id: int):
+        return self.__api_post(f"/projects/{repo_id}/pipelines/{pipeline_id}/retry").json()
 
     def gl_create_pipeline(self, repo_id: int, branch: str):
         return self.__api_post(f"/projects/{repo_id}/pipeline", {"ref": branch}).json()
 
-    def gl_stop_pipeline_job(self, repo_id: int, job_id: int):
-        return self.__api_post(f"/projects/{repo_id}/pipelines/{job_id}/cancel").json()
+    def gl_stop_pipeline_job(self, repo_id: int, pipeline_id: int):
+        return self.__api_post(f"/projects/{repo_id}/pipelines/{pipeline_id}/cancel").json()
 
     def gl_pipeline_jobs(self, repo_id: int, pipeline_id: int) -> dict[str, Any]:
         return self.__api_get(f"/projects/{repo_id}/pipelines/{pipeline_id}/jobs").json()
 
     def get_pipeline_jobs_status(self, repo_id: int, pipeline_id: int, with_commit_msg: bool = False) -> dict[str, int]:
+        from resources.template import initial_gitlab_pipline_info
+
         jobs = self.gl_pipeline_jobs(repo_id, pipeline_id)
-        total = len(jobs)
         success = len([job for job in jobs if job["status"] == "success"])
+
+        branch = self.gl_get_single_pipeline(pipeline_id)["ref"]
+        pipeline_info = initial_gitlab_pipline_info(repo_id, branch)
+        total = len(pipeline_info["pipe_dict"])
         ret = {"status": {"total": total, "success": success}}
         if with_commit_msg:
             commit_message = jobs[0].get("commit", {}).get("title", "") if jobs else ""

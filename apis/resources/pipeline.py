@@ -16,7 +16,7 @@ from flask_socketio import emit, disconnect, Namespace
 from model import db  #  remove ProjectPluginRelation ,PipelineLogsCache, Project
 from nexus import nx_get_project_plugin_relation
 from resources import role
-from .gitlab import GitLab, commit_id_to_url
+from .gitlab import GitLab
 from typing import Union, Any
 
 # from .rancher import rancher
@@ -28,15 +28,15 @@ gitlab = GitLab()
 
 def pipeline_exec_action(git_repository_id: int, args: dict[str, Union[int, str]]) -> None:
     """
-    :param args: must provide: action[create, rerun, stop] & pipelines_exec_run(job_id)
+    :param args: must provide: action[create, rerun, stop] & pipelines_exec_run(pipeline_id)
     """
-    action, job_id = args["action"], args["pipelines_exec_run"]
+    action, pipeline_id, branch = args["action"], args["pipelines_exec_run"], args.get("branch")
     if action == "rerun":
-        return gitlab.gl_rerun_pipeline_job(git_repository_id, job_id)
+        return gitlab.gl_rerun_pipeline_job(git_repository_id, pipeline_id)
     elif action == "stop":
-        return gitlab.gl_stop_pipeline_job(git_repository_id, job_id)
+        return gitlab.gl_stop_pipeline_job(git_repository_id, pipeline_id)
     elif action == "create":
-        return gitlab.gl_create_pipeline(git_repository_id, job_id)
+        return gitlab.gl_create_pipeline(git_repository_id, branch)
 
 
 def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) -> dict[str, Any]:
@@ -48,7 +48,6 @@ def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) 
     ret = []
     for pipeline_info in pipelines_info:
         sha = pipeline_info["sha"]
-        gitlab.get_pipeline_jobs_status(git_repository_id, pipeline_info["id"])
         pipeline_info["commit_id"] = sha[:8]
         pipeline_info["commit_url"] = f'{pipeline_info["web_url"].split("/-/")[0]}/-/commit/{sha}'
         pipeline_info["execution_state"] = pipeline_info["status"].capitalize()
@@ -108,160 +107,6 @@ def get_pipe_log_websocket(data):
         if not first_time or ws_end_time >= 600 or i >= 1000:
             i, last_index, first_time = 0, 0, True
             break
-
-
-# def __rancher_pagination(rancher_output):
-#     def __url_get_marker(url):
-#         key_name = "marker"
-#         for param in url.split("?", 1)[1].split("&"):
-#             if key_name in param:
-#                 return __marker_get_id(param.split("=")[1])
-
-#     def __marker_get_id(marker):
-#         return int(marker.split("-")[3])
-
-#     pagination = {
-#         "total": rancher_output["pagination"]["total"],
-#         "limit": rancher_output["pagination"]["limit"],
-#         "start": 0,
-#         "first": 0,
-#         "next": 0,
-#         "last": 0,
-#     }
-#     if "marker" in rancher_output["pagination"]:
-#         pagination["start"] = __marker_get_id(rancher_output["pagination"]["marker"])
-#     if "first" in rancher_output["pagination"]:
-#         pagination["first"] = __url_get_marker(rancher_output["pagination"]["first"])
-#     if "next" in rancher_output["pagination"]:
-#         pagination["next"] = __url_get_marker(rancher_output["pagination"]["next"])
-#     if "last" in rancher_output["pagination"]:
-#         pagination["last"] = __url_get_marker(rancher_output["pagination"]["last"])
-#     return pagination
-
-
-# def pipeline_action(repository_id, args):
-#     relation = nx_get_project_plugin_relation(repo_id=repository_id)
-#     rancher.rc_run_pipeline(relation.ci_project_id, relation.ci_pipeline_id, args["branch"])
-
-"""
-def pipeline_exec_list(repository_id, args):
-    out = {}
-    output_array = []
-    relation = nx_get_project_plugin_relation(repo_id=repository_id)
-    pipeline_outputs = rancher.rc_get_pipeline_executions(
-        relation.ci_project_id,
-        relation.ci_pipeline_id,
-        limit=args["limit"],
-        page_start=args["start"],
-    )
-    pagination = __rancher_pagination(pipeline_outputs)
-    out["pagination"] = pagination
-    project_id = relation.project_id
-    for pipeline_output in pipeline_outputs["data"]:
-        output_dict = {
-            "id": pipeline_output["run"],
-            "last_test_time": pipeline_output["created"],
-        }
-        if "message" in pipeline_output:
-            output_dict["commit_message"] = pipeline_output["message"]
-        else:
-            output_dict["commit_message"] = None
-        output_dict["commit_branch"] = pipeline_output["branch"]
-        output_dict["commit_id"] = pipeline_output["commit"][0:7]
-        output_dict["commit_url"] = commit_id_to_url(relation.project_id, pipeline_output["commit"])
-        output_dict["execution_state"] = pipeline_output["executionState"]
-        output_dict["transitioning_message"] = pipeline_output["transitioningMessage"]
-        stage_status = []
-        for stage in pipeline_output["stages"]:
-            if "state" in stage:
-                stage_status.append(stage["state"])
-        success_time = stage_status[1:].count("Success")
-        output_dict["status"] = {
-            "total": len(pipeline_output["stages"]) - 1,
-            "success": success_time,
-        }
-        output_array.append(output_dict)
-    out["pipe_execs"] = output_array
-    if out["pipe_execs"] != []:
-        rancher.rc_put_yaml_run(project_id, out["pipe_execs"][0]["id"])
-    return out
-
-
-
-
-
-def pipeline_exec_logs(args):
-    relation = nx_get_project_plugin_relation(repo_id=args["repository_id"])
-
-    # search PipelineLogsCache table log
-    log_cache = PipelineLogsCache.query.filter(
-        PipelineLogsCache.project_id == relation.project_id,
-        PipelineLogsCache.ci_pipeline_id == relation.ci_pipeline_id,
-        PipelineLogsCache.run == args["pipelines_exec_run"],
-    ).first()
-    if log_cache is None:
-        output_array, execution_state = rancher.rc_get_pipeline_executions_logs(
-            relation.ci_project_id, relation.ci_pipeline_id, args["pipelines_exec_run"]
-        )
-
-        # if execution status is Failed, Success, Aborted, log will insert into ipelineLogsCache table
-        if execution_state in ["Failed", "Success", "Aborted"]:
-            log = PipelineLogsCache(
-                project_id=relation.project_id,
-                ci_pipeline_id=relation.ci_pipeline_id,
-                run=args["pipelines_exec_run"],
-                logs=output_array,
-            )
-            db.session.add(log)
-            db.session.commit()
-        return util.success(output_array)
-    else:
-        return util.success(log_cache.logs)
-
-
-def pipeline_exec_action(git_repository_id, args):
-    relation = nx_get_project_plugin_relation(repo_id=git_repository_id)
-
-    rancher.rc_get_pipeline_executions_action(
-        relation.ci_project_id,
-        relation.ci_pipeline_id,
-        args["pipelines_exec_run"],
-        args["action"],
-    )
-    return util.success()
-
-
-def stop_and_delete_pipeline(repository_id, run, branch=None):
-    relation = nx_get_project_plugin_relation(repo_id=repository_id)
-    i = 0
-    get_run_number = 0
-    get_branch = ""
-    while True:
-        if branch:
-            pipeline_outputs = rancher.rc_get_pipeline_executions(
-                relation.ci_project_id, relation.ci_pipeline_id, limit=1, branch=branch
-            )
-        else:
-            pipeline_outputs = rancher.rc_get_pipeline_executions(
-                relation.ci_project_id, relation.ci_pipeline_id, limit=1
-            )
-
-        if (len(pipeline_outputs["data"]) > 0 and pipeline_outputs["data"][0]["run"] >= run) or i > 50:
-            get_run_number = pipeline_outputs["data"][0]["run"]
-            get_branch = pipeline_outputs["data"][0]["branch"]
-            break
-        else:
-            i += 1
-    if get_run_number >= run:
-        print(f"get_run_number: {get_run_number}, branch: {get_branch}")
-        rancher.rc_delete_pipeline_executions_run(relation.ci_project_id, relation.ci_pipeline_id, get_run_number)
-
-
-def get_pipeline_next_run(repository_id):
-    relation = nx_get_project_plugin_relation(repo_id=repository_id)
-    info_json = rancher.rc_get_pipeline_info(relation.ci_project_id, relation.ci_pipeline_id)
-    return info_json["nextRun"]
-"""
 
 
 def generate_ci_yaml(args, repository_id, branch_name):
@@ -385,28 +230,6 @@ def delete_pipeline_file(project_name, folder_name, file_name):
     rmtree(file_path)
 
 
-"""
-def delete_rest_pipelines(project_name, branch_name):
-    project_row = (
-        db.session.query(ProjectPluginRelation)
-        .join(Project)
-        .filter(Project.id == ProjectPluginRelation.project_id)
-        .filter(Project.name == project_name)
-        .first()
-    )
-
-    if project_row is None:
-        return
-    repository_id = project_row.git_repository_id
-    # output_array = pipeline_exec_list(repository_id, {"limit": 15, "start": 0})
-    pipe_ids = [
-        pipe["id"]
-        for pipe in output_array["pipe_execs"]
-        if pipe["execution_state"] in ["Waiting", "Building", "Queueing"] and pipe["commit_branch"] == branch_name
-    ]
-    for pipe_id in pipe_ids[1:]:
-        pipeline_exec_action(repository_id, {"pipelines_exec_run": pipe_id, "action": "stop"})
-"""
 # --------------------- Resources ---------------------
 
 
@@ -427,9 +250,9 @@ class PipelineExecAction(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("pipelines_exec_run", type=str, required=True)
         parser.add_argument("action", type=str, required=True)
+        parser.add_argument("branch", type=str)
         args = parser.parse_args()
         return pipeline_exec_action(repository_id, args)
-        # return util.success()
 
 
 class PipelineConfig(Resource):
@@ -481,7 +304,7 @@ class Pipeline(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("branch", type=str, required=True, location="form")
         args = parser.parse_args()
-        # pipeline_action(repository_id, args)
+        gitlab.gl_create_pipeline(repository_id, args["branch"])
         return util.success()
 
 
