@@ -12,11 +12,9 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from flask_restful import Resource, reqparse
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabGetError
-import ast
 import config
 import nexus
 import resources.apiError as apiError
-import resources.pipeline as pipeline
 import resources.role as role
 import util
 from model import PluginSoftware, Project, db
@@ -542,15 +540,15 @@ def get_tool_name(stage):
     return tool_name
 
 
-def update_branches(stage, pipline_soft, branch, enable_key_name, exist_branches):
+def update_pipeline_info_branches(stage, pipeline_soft, branch, enable_key_name, exist_branches):
     had_update_branch = False
     tool_name = stage.get("stage")
-    if pipline_soft["key"] == tool_name:
+    if pipeline_soft["key"] == tool_name:
         execute_stages = stage["only"]
-        if pipline_soft[enable_key_name] and branch not in execute_stages:
+        if pipeline_soft[enable_key_name] and branch not in execute_stages:
             execute_stages.append(branch)
             had_update_branch = True
-        elif not pipline_soft[enable_key_name] and branch in execute_stages:
+        elif not pipeline_soft[enable_key_name] and branch in execute_stages:
             execute_stages.remove(branch)
             had_update_branch = True
 
@@ -578,7 +576,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
     # Update default branch's pipeline
     exist_branch_list = [br.name for br in pj.branches.list(all=True)]
     default_branch = pj.default_branch
-    had_update_branch = False
+    has_update_file = False
     all_branches = [br.name for br in pj.branches.list(all=True)]
     need_running_branches = [i for i in list(data.keys()) if i in all_branches]
 
@@ -591,7 +589,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
 
         if default:
             for put_pipe_soft in data["stages"]:
-                had_update_branch |= update_branches(
+                has_update_file |= update_pipeline_info_branches(
                     stage_info,
                     put_pipe_soft,
                     pj.default_branch,
@@ -601,7 +599,7 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
         else:
             for input_branch, multi_software in data.items():
                 for input_soft_enable in multi_software:
-                    had_update_branch |= update_branches(
+                    has_update_file |= update_pipeline_info_branches(
                         stage_info,
                         input_soft_enable,
                         input_branch,
@@ -609,13 +607,13 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
                         exist_branch_list,
                     )
 
-    if had_update_branch:
+    if has_update_file:
         f.content = yaml.dump(pipe_dict, sort_keys=False)
         f.save(
             branch=default_branch,
             author_email="system@iiidevops.org.tw",
             author_name="iiidevops",
-            commit_message=f"{user_account} 編輯 {default_branch} 分支 .gitlab-ci.yaml ({'run' if run else 'store'})",
+            commit_message=f"{user_account} 編輯 {default_branch} 分支 .gitlab-ci.yaml ({'run' if run and default_branch in need_running_branches else 'store'})",
         )
 
     # Sync default branch pipeline.yml to other branches, separate to two parts to avoid not delete all branches
@@ -671,14 +669,6 @@ def sync_branch(
         )
 
 
-# def get_gitlab_pipeline_file_json(repository_id: int, pipe_yaml_name: str, branch_name: str) -> dict[str, Any]:
-#     """Only get the execute stage info"""
-#     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=branch_name)
-#     pipe_dict = yaml.safe_load(f.decode())
-#     pipe_dict = {k: v for k, v in pipe_dict.items() if k not in ["stages"] and not k.startswith(".")}
-#     return pipe_dict
-
-
 def initial_gitlab_pipline_info(repository_id, branch_name=None):
     try:
         pj = gl.projects.get(repository_id)
@@ -704,7 +694,7 @@ def initial_gitlab_pipline_info(repository_id, branch_name=None):
         return {}
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
     pipe_dict = yaml.safe_load(f.decode())
-    pipe_dict = {k: v for k, v in pipe_dict if FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(k)}
+    pipe_dict = {k: v for k, v in pipe_dict.items() if FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(k)}
     return {"default_branch": default_branch, "pipe_dict": pipe_dict}
 
 
@@ -845,12 +835,6 @@ class ProjectPipelineBranches(Resource):
         # Remove duplicate args
         for branch, pip_info in args["detail"].items():
             args["detail"][branch] = [dict(t) for t in {tuple(d.items()) for d in pip_info}]
-        # thread = threading.Thread(
-        #     target=tm_update_pipline_branches,
-        #     args=(get_jwt_identity()["user_account"], repository_id, args["detail"],),
-        #     kwargs={"default":False, "run": args["run"]}
-        # )
-        # thread.start()
         tm_update_pipline_branches(
             get_jwt_identity()["user_account"],
             repository_id,
