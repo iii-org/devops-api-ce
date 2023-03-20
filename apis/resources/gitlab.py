@@ -958,7 +958,7 @@ class GitLab(object):
         jobs = self.gl_pipeline_jobs(repo_id, pipeline_id)
         success = len([job for job in jobs if job["status"] == "success"])
 
-        branch = self.gl_get_single_pipeline(pipeline_id)["ref"]
+        branch = self.gl_get_single_pipeline(repo_id, pipeline_id)["ref"]
         pipeline_info = initial_gitlab_pipline_info(repo_id, branch)
         total = len(pipeline_info["pipe_dict"])
         ret = {"status": {"total": total, "success": success}}
