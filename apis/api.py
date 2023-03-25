@@ -170,7 +170,6 @@ Beat: beat is responsible for scheduling periodic tasks.
 
 class FlaskCelery(Celery):
     def __init__(self, *args, **kwargs):
-
         super(FlaskCelery, self).__init__(*args, **kwargs)
         self.conf.update(celery_config)
         self.patch_task()

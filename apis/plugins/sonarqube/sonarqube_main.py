@@ -27,7 +27,7 @@ METRICS = (
     ",duplicated_blocks,duplicated_lines_density"
 )
 PAGE_SIZE = 1000
-SONAR_SCAN_PATH = "sonar-scanner4.7.0/bin"
+SONAR_SCAN_PATH = "sonar-scanner-4.8.0/bin"
 # ./sonar-scanner -Dsonar.host.url='{config.get("SONARQUBE_EXTERNAL_BASE_URL")}' -Dsonar.login='{config.get("SONARQUBE_ADMIN_TOKEN")}' -Dsonar.projectKey='projectkey' -Dsonar.projectName='projectnewname'
 
 
@@ -209,7 +209,7 @@ def sq_get_history_measures(project_name):
         fetch[date]["issue_link"] = gitlab.commit_id_to_url(project_id, commit_id)
 
     # Write new data into db
-    for (date, measures) in fetch.items():
+    for date, measures in fetch.items():
         if date == latest:
             continue
         new = model.Sonarqube(project_name=project_name, date=date, measures=json.dumps(measures))
