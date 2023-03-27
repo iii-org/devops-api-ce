@@ -18,6 +18,7 @@ from nexus import nx_get_project_plugin_relation
 from resources import role
 from .gitlab import GitLab
 from typing import Union, Any
+from resources.gitlab import commit_id_to_url, get_nexus_project_id
 
 # from .rancher import rancher
 from os import listdir, makedirs
@@ -49,7 +50,7 @@ def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) 
     for pipeline_info in pipelines_info:
         sha = pipeline_info["sha"]
         pipeline_info["commit_id"] = sha[:8]
-        pipeline_info["commit_url"] = f'{pipeline_info["web_url"].split("/-/")[0]}/-/commit/{sha}'
+        pipeline_info["commit_url"] = commit_id_to_url(get_nexus_project_id(git_repository_id), sha)
         pipeline_info["execution_state"] = pipeline_info["status"].capitalize()
         pipeline_info.update(
             gitlab.get_pipeline_jobs_status(git_repository_id, pipeline_info["id"], with_commit_msg=True)
