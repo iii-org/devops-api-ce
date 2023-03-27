@@ -581,6 +581,10 @@ def tm_update_pipline_branches(user_account, repository_id, data, default=True, 
     need_running_branches = [i for i in list(data.keys()) if i in all_branches]
 
     f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_file_name, branch_name=default_branch)
+
+    """
+    yaml.safe_load(base64.b64decode(get_yaml_data["content"]).decode("utf-8"))
+    """
     pipe_dict = yaml.safe_load(f.decode())
 
     for stage_name, stage_info in pipe_dict.items():

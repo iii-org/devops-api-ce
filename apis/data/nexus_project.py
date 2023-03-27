@@ -12,6 +12,7 @@ import nexus
 from model import ProjectUserRole
 from resources import user
 from resources.apiError import DevOpsError
+
 # from resources.rancher import get_ci_last_test_result
 from accessories import redmine_lib
 
@@ -113,7 +114,13 @@ class NexusProject:
         from resources.project_relation import project_has_child
 
         ret = json.loads(str(self.get_project_row()))
-        ret["git_url"] = ret["http_url"]
+        if config.get("GITLAB_EXTERNAL_BASE_URL") is not None:
+            ret["git_url"] = (
+                f'{config.get("GITLAB_EXTERNAL_BASE_URL")}/{config.get("GITLAB_ADMIN_ACCOUNT") or "root"}/'
+                f'{ret["name"]}.git'
+            )
+        else:
+            ret["git_url"] = ret["http_url"]
         del ret["http_url"]
         ret["repository_ids"] = [self.get_project_row().plugin_relation.git_repository_id]
         ret["redmine_url"] = (
@@ -146,7 +153,7 @@ class NexusProject:
         return self
 
     def fill_extra_fields(self):
-        pass 
+        pass
         # self.__extra_fields.update(get_ci_last_test_result(self.get_project_row().plugin_relation))
         # return self
 

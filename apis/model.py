@@ -29,7 +29,6 @@ from sqlalchemy import (
     JSON,
     Float,
     ARRAY,
-    PickleType,
 )
 from sqlalchemy.orm import relationship, backref, validates
 from sqlalchemy.dialects import postgresql

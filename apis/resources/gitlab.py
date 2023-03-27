@@ -96,7 +96,15 @@ def get_repo_url(project_id):
 
 
 def commit_id_to_url(project_id, commit_id):
-    return f"{get_repo_url(project_id)[0:-4]}/-/commit/{commit_id}"
+    project_query = model.Project.query.filter_by(id=project_id).one()
+    if config.get("GITLAB_EXTERNAL_BASE_URL") is not None:
+        project_name = project_query.name
+        git_repo_url = (
+            f'{config.get("GITLAB_EXTERNAL_BASE_URL")}/{config.get("GITLAB_ADMIN_ACCOUNT") or "root"}/{project_name}'
+        )
+    else:
+        git_repo_url = project_query.http_url[0:-4]
+    return f"{git_repo_url}/-/commit/{commit_id}"
 
 
 # May throws NoResultFound
@@ -108,13 +116,9 @@ class GitLab(object):
     private_token = None
 
     def __init__(self):
-        # Wirte gitlab domain to /etc/host
+        # Write gitlab domain to /etc/host
         if config.get("GITLAB_DOMAIN_NAME") is not None:
             cluster_ip = ""
-            # namespaces = ApiK8sClient().list_namespaced_service("default")
-            # for nsp in namespaces.items:
-            #     if nsp.metadata.name == "gitlab-service":
-            #         cluster_ip = nsp.spec.cluster_ip
             cmd = f'echo "$(sed /$GITLAB_DOMAIN_NAME/d /etc/hosts)" > /etc/hosts; echo "{cluster_ip} $GITLAB_DOMAIN_NAME" >> /etc/hosts'
             os.system(cmd)
 

@@ -109,34 +109,6 @@ def get_pipe_log_websocket(data):
             break
 
 
-def generate_ci_yaml(args, repository_id, branch_name):
-    parameter = {}
-    dict_object = json.loads(args["detail"].replace("'", '"'))
-    doc = yaml.dump(dict_object)
-    base_file = base64.b64encode(bytes(doc, encoding="utf-8")).decode("utf-8")
-    parameter["branch"] = branch_name
-    parameter["start_branch"] = branch_name
-    parameter["encoding"] = "base64"
-    parameter["content"] = base_file
-    parameter["author_email"] = "system@iiidevops.org.tw"
-    parameter["author_name"] = "iiidevops"
-    (
-        yaml_file_can_not_find,
-        yml_file_can_not_find,
-        get_yaml_data,
-    ) = _get_rancher_pipeline_yaml(repository_id, parameter)
-    if yaml_file_can_not_find and yml_file_can_not_find:
-        method = "post"
-        parameter["commit_message"] = "add .rancher-pipeline"
-    elif yaml_file_can_not_find or yml_file_can_not_find:
-        method = "put"
-        parameter["commit_message"] = "modify .rancher-pipeline"
-    else:
-        raise apiError.DevOpsError(400, "Has both .yaml and .yml files")
-    gitlab.gl_create_rancher_pipeline_yaml(repository_id, parameter, method)
-    return util.success()
-
-
 def get_ci_yaml(repository_id, branch_name):
     parameter = {"branch": branch_name}
     (
@@ -282,13 +254,6 @@ class PipelineYaml(Resource):
     @jwt_required()
     def get(self, repository_id, branch_name):
         return get_ci_yaml(repository_id, branch_name)
-
-    @jwt_required()
-    def post(self, repository_id, branch_name):
-        parser = reqparse.RequestParser()
-        parser.add_argument("detail")
-        args = parser.parse_args()
-        return generate_ci_yaml(args, repository_id, branch_name)
 
 
 class PipelinePhaseYaml(Resource):
