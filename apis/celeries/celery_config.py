@@ -29,5 +29,9 @@ celery_config = {
             "task": "sync_project_relation",
             "schedule": crontab(minute="2"),
         },
+        "report_to_version_center": {
+            "task": "report_to_version_center",
+            "schedule": crontab(minute="3", hour="0"),
+        },
     },
 }

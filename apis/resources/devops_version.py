@@ -9,6 +9,9 @@ from flask_jwt_extended import jwt_required
 from flask_restful import Resource
 
 
+version_center_token = None
+
+
 def set_deployment_uuid():
     my_uuid = uuid.uuid1()
     row = model.NexusVersion.query.first()

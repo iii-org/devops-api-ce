@@ -2,6 +2,7 @@ from api import celery
 from resources.sync_redmine import init_data
 from resources import project, project_relation
 from resources import logger
+from resources.devops_version import register_in_vc
 
 
 def error_handler(func):
@@ -34,3 +35,9 @@ def sync_project_issue_calculation() -> None:
 @error_handler
 def sync_project_relation() -> None:
     project_relation.sync_project_relation()
+
+
+@celery.task(name="report_to_version_center")
+@error_handler
+def report_to_version_center() -> None:
+    register_in_vc()
