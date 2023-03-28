@@ -548,15 +548,7 @@ def pm_update_project(project_id, args):
             + " -D"
             + sonar_projectname
         )
-        os.system(
-            "chmod +x "
-            + sonarqube.SONAR_SCAN_PATH
-            + " -R && "
-            + "cd "
-            + sonarqube.SONAR_SCAN_PATH
-            + " && "
-            + sonar_rename
-        )
+        os.system("cd " + sonarqube.SONAR_SCAN_PATH + " && " + sonar_rename)
 
 
 @record_activity(ActionType.UPDATE_PROJECT)
