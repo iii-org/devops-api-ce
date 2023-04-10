@@ -210,7 +210,8 @@ def get_certain_pj_issue_calc(pj_id):
 
 
 def update_pj_issue_calcs(project_issue_calculation):
-    return redis_op.dict_set_all(PROJECT_ISSUE_CALCULATE_KEY, project_issue_calculation)
+    if project_issue_calculation:
+        return redis_op.dict_set_all(PROJECT_ISSUE_CALCULATE_KEY, project_issue_calculation)
 
 
 def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):

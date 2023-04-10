@@ -646,8 +646,19 @@ def start_prod():
         raise e
 
 
+def start_prod_not_extra():
+    """
+    The execution of these functions does not affect the server's startup.
+    """
+    try:
+        # Register in version center
+        devops_version.login()
+        devops_version.register_in_vc(force_update=True)
+    except Exception as e:
+        logger.logger.exception(f"Error message: {str(e)}")
+
+
 if __name__ == "__main__":
     start_prod()
-    devops_version.login()
-    devops_version.register_in_vc(force_update=True)
+    start_prod_not_extra()
     socketio.run(app, host="0.0.0.0", port=10009)
