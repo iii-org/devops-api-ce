@@ -94,7 +94,7 @@ def sq_list_user(params):
 
 
 def sq_list_project(params):
-    return __api_post("/projects/search", params=params)
+    return __api_get("/projects/search", params=params)
 
 
 def sq_update_project_key(oldname, newname):
@@ -111,22 +111,26 @@ def sq_delete_project(project_name):
 
 
 def sq_list_member(project_name, params):
+    # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
     return __api_get(
-        f"/permissions/users?projectKey={project_name}" f"&permission=codeviewer&permission=user",
+        f"/permissions/users?projectKey={project_name}" f"&permission=scan",
         params=params,
     )
 
 
 def sq_add_member(project_name, user_login):
-    __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=user")
-    return __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=codeviewer")
+    # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
+    # __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=admin")
+    return __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=scan")
 
 
 def sq_remove_member(project_name, user_login):
-    return __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=user")
+    # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
+    return __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=scan")
 
 
 def sq_create_access_token(login):
+    # name 依實際建立機器人帳號時的名稱而改變
     params = {"login": login, "name": "iiidevops-bot"}
     return __api_post("/user_tokens/generate", params=params).json()["token"]
 
