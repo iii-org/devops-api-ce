@@ -1813,7 +1813,7 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
 def has_or_no_due_date(issue):
     dt = dict (issue)
     dt_due_date = {'due_date': None, 'now':None}
-    dt_due_date['due_date'] = dt['due_date'] 
+    dt_due_date['due_date'] = dt['due_date']
     dt_due_date['now'] = str(date.today())
     bool_has_due_date = True if  dt_due_date['due_date'] is not None else False
     bool_no_due_date = True if dt_due_date['due_date'] is None else False
