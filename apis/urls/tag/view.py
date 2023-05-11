@@ -78,7 +78,7 @@ class TagsV2(MethodResource):
             if kwargs.get("project_id", None) is None:
                 return util.success({"tags": get_tags()})
             else:
-                return util.success({"tags": get_tags(kwargs.get("project_id"), kwargs.get("tag_name", None))})
+                return util.success({"tags": get_tags(kwargs.get("project_id"), kwargs.get("name", None))})
         except NoResultFound:
             return util.respond(404)
 
