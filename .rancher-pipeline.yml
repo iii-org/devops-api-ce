@@ -64,17 +64,17 @@ stages:
       image: iiiorg/iiidevops-cli:0.0.4
       shellScript: rancher login ${rancher_url} -t ${rancher_api_token} --skip-verify
         && rancher kubectl delete configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
-        --ignore-not-found=true && chk-app-env.pl && rancher kubectl
-        create configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
-        --from-env-file=iiidevops/app.env && rancher kubectl annotate configmap -n
-        ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env iiidevops.org/project_name=${CICD_GIT_REPO_NAME}
-        iiidevops.org/branch=${CICD_GIT_BRANCH} iiidevops.org/commit_id=${CICD_GIT_COMMIT}
-        iiidevops.org/type=appenv
+        --ignore-not-found=true && chk-app-env.pl && rancher kubectl create configmap
+        -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env --from-env-file=iiidevops/app.env
+        && rancher kubectl annotate configmap -n ${CICD_GIT_REPO_NAME} ${CICD_GIT_REPO_NAME}-${CICD_GIT_BRANCH}-env
+        iiidevops.org/project_name=${CICD_GIT_REPO_NAME} iiidevops.org/branch=${CICD_GIT_BRANCH}
+        iiidevops.org/commit_id=${CICD_GIT_COMMIT} iiidevops.org/type=appenv
   when:
     branch:
       include:
       - master
       - jonathan
+      - wbs
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -95,6 +95,7 @@ stages:
       include:
       - master
       - jonathan
+      - wbs
 - name: Build--Scan docker image
   iiidevops: deployed-environments
   steps:
@@ -111,6 +112,7 @@ stages:
       include:
       - master
       - jonathan
+      - wbs
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -143,6 +145,7 @@ stages:
       include:
       - master
       - jonathan
+      - wbs
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -168,6 +171,7 @@ stages:
       include:
       - master
       - jonathan
+      - wbs
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -191,6 +195,7 @@ stages:
       include:
       - master
       - jonathan
+      - wbs
 - name: Test--Anchore SBOM
   iiidevops: anchore
   steps:
