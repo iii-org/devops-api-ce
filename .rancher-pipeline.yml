@@ -31,6 +31,7 @@ stages:
     branch:
       include:
       - master
+      - excalidraw
 - name: Test--Checkmarx source code scan
   iiidevops: checkmarx
   steps:
@@ -75,6 +76,7 @@ stages:
       - master
       - jonathan
       - wbs
+      - excalidraw
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -96,6 +98,7 @@ stages:
       - master
       - jonathan
       - wbs
+      - excalidraw
 - name: Build--Scan docker image
   iiidevops: deployed-environments
   steps:
@@ -113,6 +116,7 @@ stages:
       - master
       - jonathan
       - wbs
+      - excalidraw
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -146,6 +150,7 @@ stages:
       - master
       - jonathan
       - wbs
+      - excalidraw
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -172,6 +177,7 @@ stages:
       - master
       - jonathan
       - wbs
+      - excalidraw
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -196,6 +202,7 @@ stages:
       - master
       - jonathan
       - wbs
+      - excalidraw
 - name: Test--Anchore SBOM
   iiidevops: anchore
   steps:
