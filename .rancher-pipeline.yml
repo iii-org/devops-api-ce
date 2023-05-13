@@ -223,7 +223,6 @@ stages:
     branch:
       include:
       - master
-      - jonathan
 - name: Test--ZAP
   iiidevops: zap
   steps:
