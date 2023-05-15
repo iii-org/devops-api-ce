@@ -26,7 +26,7 @@ from resources.issue import (
     create_custom_issue_filter,
     put_custom_issue_filter,
     get_lock_status,
-    # DownloadIssueAsExcel,
+    DownloadIssueAsExcel,
     pj_download_file_is_exist,
 )
 from resources import project, user, version, wiki, release
