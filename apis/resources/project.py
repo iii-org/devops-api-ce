@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import re
@@ -47,6 +48,7 @@ from flask_apispec.views import MethodResource
 from resources import role
 from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
 import config
+from typing import Any
 
 
 """
@@ -110,20 +112,33 @@ def get_project_issue_calculation(user_id, project_ids=[]):
         check_project_exist()
     return ret
 
+def check_son_project_belong_to_by_userid(user_id: int, son_id_list: list) -> list:
+    user_project_id_list = (
+        model.ProjectUserRole.query.filter_by(user_id=user_id).with_entities(model.ProjectUserRole.project_id).all()
+    )
+    son_id_list = [user_project_id[0] for user_project_id in user_project_id_list if user_project_id[0] in son_id_list]
+    return son_id_list
 
-def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
-    limit = args.get("limit")
-    offset = args.get("offset")
-    extra_data = args.get("test_result", "false") == "true"
-    pj_members_count = args.get("pj_members_count", "false") == "true"
-    user_name = model.User.query.get(user_id).login
+def get_son_project_by_redmine_id(project_id: int,role, user_id: int,extra_data, pj_members_count,user_name,sync, start: bool = False) -> dict[str:Any]:
+    if not start:
+        row_project = model.Project.query.filter_by(id=project_id).first()
+        start_project = get_nexux_project(row_project=row_project,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
+        start_project["children"] = []
+    else:
+        start_project = {"children": []}
 
-    rows, counts = get_project_rows_by_user(user_id, disable, args=args)
-    ret = []
-    for row in rows:
-        nexus_project = NexusProject().set_project_row(row).set_starred_info(user_id)
+    son_ids = [row.son_id for row in model.ProjectParentSonRelation.query.filter_by(parent_id=project_id).all()]
+    for son_id in son_ids:
+        if get_jwt_identity()["role_id"] != 5:
+            son_ids = check_son_project_belong_to_by_userid(user_id=get_jwt_identity()["user_id"], son_id_list=son_ids)
+        son = get_son_project_by_redmine_id(son_id,role, user_id, extra_data, pj_members_count,user_name,sync, False)
+        start_project["children"].append(son)
+    return start_project
+
+def get_nexux_project(row_project: object, user_id:int,role: str, sync:bool, user_name:str, extra_data:bool, pj_members_count:bool) -> dict[str: Any]:
+        start_project = NexusProject().set_project_row(row_project).set_starred_info(user_id)
+        redmine_project_id = row_project.plugin_relation.plan_project_id
         if role == "pm":
-            redmine_project_id = row.plugin_relation.plan_project_id
             try:
                 if sync:
                     project_object = redmine_lib.redmine.project.get(redmine_project_id)
@@ -134,18 +149,46 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
                     "id": project_object.id,
                 }
             except (ResourceNotFoundError, ForbiddenError):
-                # When Redmine project was missing
-                sync_project.lock_project(nexus_project.name, "Redmine")
+                # When Redmin project was missing
+                sync_project.lock_project(start_project.name, "Redmine")
                 rm_project = {"updated_on": datetime.utcnow().isoformat(), "id": -1}
-            nexus_project = nexus_project.fill_pm_extra_fields(rm_project, user_name, sync)
+
+            start_project = start_project.fill_pm_extra_fields(rm_project, user_name, sync)
         if extra_data:
-            pass
-            # nexus_project = nexus_project.fill_extra_fields()
+            start_project = start_project.fill_extra_fields()
 
         if pj_members_count:
-            nexus_project = nexus_project.set_project_members()
+            start_project = start_project.set_project_members()
+        return start_project.to_json()
 
-        ret.append(nexus_project.to_json())
+
+def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
+    '''
+    List all project when role is equal to simple, so avoid do something if role == simple. 
+    '''
+    limit = args.get("limit")
+    offset = args.get("offset")
+    extra_data = args.get("test_result", "false") == "true"
+    pj_members_count = args.get("pj_members_count", "false") == "true"
+    parent_son = args.get("parent_son", False)
+    user_name = model.User.query.get(user_id).login
+
+    rows, counts = get_project_rows_by_user(user_id, disable, args=args)
+    ret = []
+    for row in rows:
+        redmine_project_id = row.plugin_relation.plan_project_id
+        nexus_project = get_nexux_project(row_project=row,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
+        if parent_son:
+            project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().project_id
+            son = get_son_project_by_redmine_id(project_id, role,user_id,extra_data, pj_members_count, user_name,sync, start=True)            
+            nexus_project['children'] = son.get('children', [])
+        ret.append(nexus_project)
+    logging.info('Successful get all project')
+    if limit is not None and offset is not None:
+        page_dict = util.get_pagination(counts, limit, offset)
+        return {"project_list": ret, "page": page_dict}
+
+    return ret
 
     if limit is not None and offset is not None:
         page_dict = util.get_pagination(counts, limit, offset)
