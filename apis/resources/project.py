@@ -213,6 +213,7 @@ def get_project_rows_by_user(user_id, disable, args={}):
         if args.get("pj_due_date_end", False)
         else None
     )
+    root: bool = args.get('root')
 
     query: Query = model.Project.query.options(joinedload(model.Project.user_role, innerjoin=True))
     # 如果不是admin（也就是一般RD/PM/QA），取得 user_id 有參加的 project 列表
@@ -259,6 +260,10 @@ def get_project_rows_by_user(user_id, disable, args={}):
             for star_project in stared_project_objects
             if pj_due_start <= star_project.due_date <= pj_due_end
         ]
+        
+    if root is True:
+        sons_project_list = [son[0] for son in model.ProjectParentSonRelation.query.with_entities(model.ProjectParentSonRelation.son_id).all()]
+        query: Query = query.filter(Project.id.notin_(sons_project_list))
 
     # Remove dump_project and stared_project
     stared_project_ids: list[int] = [_.id for _ in stared_project_objects]
