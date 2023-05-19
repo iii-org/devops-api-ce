@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
+from time import sleep
 from typing import Optional
 
 from flask_socketio import Namespace, emit, join_room, leave_room
@@ -1220,6 +1221,14 @@ def get_issue_datetime_status(project_id:str) -> dict[str, int]:
     return output
 
 
+def add_issue_watcher(isse_id: int, user_id: dict):
+    return redmine.rm_add_watcher(isse_id, user_id)
+
+
+def remove_issue_watcher(issue_id: int, user_id: dict):
+    return redmine.rm_remove_watcher(issue_id, user_id)
+
+
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
         return []
@@ -2353,6 +2362,15 @@ def delete_issue_relation(relation_id, user_account):
         broadcast=True,
     )
 
+def delete_issue_tag(tag_id: int) -> None:
+    all_issue = model.IssueTag.query.filter(model.IssueTag.tag_id != []) #.filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    for issue in all_issue:
+        if tag_id in issue.tag_id:
+            issue.tag_id.remove(tag_id)
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            db.session.commit()
+            sleep(0.5)
+            continue
 
 def check_issue_closable(issue_id):
     # loop 離開標誌
