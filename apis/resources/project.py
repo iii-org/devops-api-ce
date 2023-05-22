@@ -303,76 +303,131 @@ def get_project_rows_by_user(user_id, disable, args={}):
 # 新增redmine & gitlab的project並將db相關table新增資訊
 @record_activity(ActionType.CREATE_PROJECT)
 def create_project(user_id, args):
-    is_inherit_members = args.pop("is_inheritance_member", False)
-    if args["description"] is None:
-        args["description"] = ""
-    if args["display"] is None:
-        args["display"] = args["name"]
-    if not args["owner_id"]:
-        owner_id = user_id
-    else:
-        owner_id = args["owner_id"]
+    args["description"] = args["description"] or ""
+    args["display"] = args["display"] or args["name"]
     project_name = args["name"]
-    # create namespace in kubernetes
 
     # 取得母專案資訊
     if args.get("parent_id", None) is not None:
         parent_plan_project_id = get_plan_project_id(args.get("parent_id"))
         args["parent_plan_project_id"] = parent_plan_project_id
 
-    # 使用 multi-thread 建立各專案
-    redmine_pj_id = redmine.rm_create_project(args)["project"]["id"]
-    output = gitlab.gl_create_project(args)
-    gitlab_pj_id = output["id"]
-    gitlab_pj_name = output["name"]
-    gitlab_pj_ssh_url = output["ssh_url_to_repo"]
-    gitlab_pj_http_url = output["http_url_to_repo"]
-    sonarqube.sq_create_project(args["name"], args.get("display"))
+    pj_id_mapping = create_project_in_servers(args)
+    ret_pj_id_mapping = create_project_main(user_id, args, pj_id_mapping)
+    return ret_pj_id_mapping
+
+
+def create_project_in_servers(args: dict[str, Any]) -> dict[str : dict[str, Any]]:
+    services = ["redmine", "gitlab", "sonarqube"]
+    targets = {
+        "redmine": redmine.rm_create_project,
+        "gitlab": gitlab.create_project,
+        "sonarqube": sonarqube.sq_create_project,
+    }
+    service_args = {
+        "redmine": (args,),
+        "gitlab": (args,),
+        "sonarqube": (args["name"], args.get("display")),
+    }
+    helper = util.ServiceBatchOpHelper(services, targets, service_args)
+    helper.run()
+
+    # 先取出已成功的專案建立 id，以便之後可能的回溯需求
+    pj_id_mapping = {
+        "redmine": {"id": None},
+        "gitlab": {"id": None, "name": None, "ssh_url": None, "http_url": None},
+        "harbor": {"id": None},
+        "key_cloak": {"id": None},
+    }
     project_name = args["name"]
+
+    for service in services:
+        if helper.errors[service] is None:
+            output = helper.outputs[service]
+            if service == "redmine":
+                pj_id_mapping["redmine"]["id"] = output["project"]["id"]
+            elif service == "gitlab":
+                pj_id_mapping["gitlab"]["id"] = output["id"]
+                pj_id_mapping["gitlab"]["name"] = output["name"]
+                pj_id_mapping["gitlab"]["ssh_url"] = output["ssh_url_to_repo"]
+                pj_id_mapping["gitlab"]["http_url"] = output["http_url_to_repo"]
+
+    # 如果不是全部都成功，rollback
+    if any(helper.errors.values()):
+        roll_back_all_created_projects(project_name, services, helper, pj_id_mapping)
+
+    return pj_id_mapping
+
+
+def roll_back_all_created_projects(
+    project_name: str, services: list[str], helper: util.ServiceBatchOpHelper, pj_id_mapping: dict[str, Any]
+):
+    roll_back_all_created_projects_delete_process(project_name, services, helper, pj_id_mapping)
+    roll_back_all_created_projects_raise_error(project_name, services, helper)
+
+
+def roll_back_all_created_projects_delete_process(
+    project_name: str, services: list[str], helper: util.ServiceBatchOpHelper, pj_id_mapping: dict[str, Any]
+):
+    for service in services:
+        if helper.errors[service] is None:
+            if service == "redmine":
+                redmine.rm_delete_project(pj_id_mapping["redmine"]["id"])
+            elif service == "gitlab":
+                gitlab.gl_delete_project(pj_id_mapping["gitlab"]["id"])
+            elif service == "sonarqube":
+                sonarqube.sq_delete_project(project_name)
+
+
+def roll_back_all_created_projects_raise_error(
+    project_name: str, services: list[str], helper: util.ServiceBatchOpHelper
+):
+    # 丟出服務序列在最前的錯誤
+    for service in services:
+        e = helper.errors[service]
+        if e is not None:
+            if service == "redmine":
+                status_code = e.status_code
+                resp = e.unpack_response()
+                if status_code == 422 and "errors" in resp:
+                    if len(resp["errors"]) > 0:
+                        if resp["errors"][0] == "Identifier has already been taken":
+                            raise DevOpsError(
+                                status_code,
+                                "Redmine already used this identifier.",
+                                error=apiError.identifier_has_been_taken(project_name),
+                            )
+                raise e
+            elif service == "gitlab":
+                status_code = e.status_code
+                gitlab_json = e.unpack_response()
+                if status_code == 400:
+                    try:
+                        if gitlab_json["message"]["name"][0] == "has already been taken":
+                            raise DevOpsError(
+                                status_code,
+                                {"gitlab": gitlab_json},
+                                error=apiError.identifier_has_been_taken(project_name),
+                            )
+                    except (KeyError, IndexError):
+                        pass
+                raise e
+            else:
+                raise e
+
+
+def create_project_main(user_id: int, args: dict[str, Any], pj_id_mapping: dict[str : dict[str, Any]]):
+    owner_id = args["owner_id"] or user_id
+    redmine_pj_id = pj_id_mapping["redmine"]["id"]
+    gitlab_pj_id = pj_id_mapping["gitlab"]["id"]
+    gitlab_pj_http_url = pj_id_mapping["gitlab"]["http_url"]
+    project_name = args["name"]
+    project_id = None
+    uuids = uuid.uuid1().hex
+
     try:
-        project_id = None
-        uuids = uuid.uuid1().hex
-        # enable rancher pipeline
-
-        # add kubernetes namespace into rancher default project
-
-        # get base_example
-        template_pj_path = None
-        if args.get("template_id") is not None:
-            template_pj = template.get_projects_detail(args["template_id"])
-            template_pj_path = template_pj.path
-
-        # Insert into nexus database
-        new_pjt = model.Project(
-            name=gitlab_pj_name,
-            display=args["display"],
-            description=args["description"],
-            ssh_url=gitlab_pj_ssh_url,
-            http_url=gitlab_pj_http_url,
-            disabled=args["disabled"],
-            start_date=args["start_date"],
-            due_date=args["due_date"],
-            create_at=str(datetime.utcnow()),
-            owner_id=owner_id,
-            creator_id=user_id,
-            base_example=template_pj_path,
-            example_tag=args["tag_name"],
-            uuid=uuids,
-            is_inheritance_member=is_inherit_members,
-            is_empty_project=args.get("template_id") is None,
-        )
-        db.session.add(new_pjt)
-        db.session.commit()
-        project_id = new_pjt.id
-
-        # 加關聯project_plugin_relation
-        new_relation = model.ProjectPluginRelation(
-            project_id=project_id,
-            plan_project_id=redmine_pj_id,
-            git_repository_id=gitlab_pj_id,
-        )
-        db.session.add(new_relation)
-        db.session.commit()
+        ret_pi_id_mapping = create_project_store_in_db(user_id, uuids, args, pj_id_mapping)
+        project_id = ret_pi_id_mapping["project_id"]
 
         # 若有父專案, 加關聯進ProjectParentSonRelation
         if args.get("parent_plan_project_id") is not None:
@@ -397,19 +452,8 @@ def create_project(user_id, args):
         create_bot(project_id)
 
         # 若要繼承父專案成員, 加剩餘成員加關聯project_user_role
-        if is_inherit_members and args.get("parent_plan_project_id") is not None:
-            for row in (
-                db.session.query(model.User, ProjectUserRole)
-                .join(model.User)
-                .filter(model.ProjectUserRole.project_id == args.get("parent_id"))
-                .all()
-            ):
-                if (
-                    row.User.id not in [owner_id, user_id]
-                    and not row.User.login.startswith("project_bot")
-                    and row.ProjectUserRole.role_id != 7
-                ):
-                    project_add_member(project_id, row.User.id)
+        if args.pop("is_inheritance_member", False) and args.get("parent_plan_project_id") is not None:
+            create_project_add_father_project_members(owner_id, user_id, project_id, args.get("parent_id"))
 
         # Commit and push file by template , if template env is not None
         if args.get("template_id") is not None:
@@ -420,19 +464,10 @@ def create_project(user_id, args):
                 args["arguments"],
                 uuids,
             )
-        # Create project NFS folder /(uuid)
-        for folder in ["pipeline", uuids]:
-            project_nfs_file_path = f"./devops-data/project-data/{gitlab_pj_name}/{folder}"
-            os.makedirs(project_nfs_file_path, exist_ok=True)
-            os.chmod(project_nfs_file_path, 0o777)
 
-        return {
-            "project_id": project_id,
-            "plan_project_id": redmine_pj_id,
-            "git_repository_id": gitlab_pj_id,
-            "description": args["description"],
-            "project_url": f'http://{config.get("DEPLOYMENT_NAME")}/#/plan/{project_name}/overview',
-        }
+        create_project_add_nfs_folder(uuids, project_name)
+
+        return ret_pi_id_mapping
     except Exception as e:
         redmine.rm_delete_project(redmine_pj_id)
         gitlab.gl_delete_project(gitlab_pj_id)
@@ -444,6 +479,90 @@ def create_project(user_id, args):
             db.engine.execute("DELETE FROM public.project_user_role WHERE project_id = '{0}'".format(project_id))
             db.engine.execute("DELETE FROM public.projects WHERE id = '{0}'".format(project_id))
         raise e
+
+
+def create_project_store_in_db(
+    user_id: int, uuids: str, args: dict[str, Any], pj_id_mapping: dict[str : dict[str, Any]]
+) -> None:
+    owner_id = args["owner_id"] or user_id
+    # get base_example
+    redmine_pj_id = pj_id_mapping["redmine"]["id"]
+    gitlab_pj_id = pj_id_mapping["gitlab"]["id"]
+    gitlab_pj_name = pj_id_mapping["gitlab"]["name"]
+    gitlab_pj_ssh_url = pj_id_mapping["gitlab"]["ssh_url"]
+    gitlab_pj_http_url = pj_id_mapping["gitlab"]["http_url"]
+    harbor_pj_id = pj_id_mapping["harbor"]["id"]
+    project_name = args["name"]
+    key_cloak_group_id = pj_id_mapping["key_cloak"]["id"]
+    project_id = None
+    template_pj_path = None
+
+    if args.get("template_id") is not None:
+        template_pj = template.get_projects_detail(args["template_id"])
+        template_pj_path = template_pj.path
+
+    # Insert into nexus database
+    new_pjt = model.Project(
+        name=gitlab_pj_name,
+        display=args["display"],
+        description=args["description"],
+        ssh_url=gitlab_pj_ssh_url,
+        http_url=gitlab_pj_http_url,
+        disabled=args["disabled"],
+        start_date=args["start_date"],
+        due_date=args["due_date"],
+        create_at=str(datetime.utcnow()),
+        owner_id=owner_id,
+        creator_id=user_id,
+        base_example=template_pj_path,
+        example_tag=args["tag_name"],
+        uuid=uuids,
+        is_inheritance_member=args.pop("is_inheritance_member", False),
+        is_empty_project=args.get("template_id") is None,
+    )
+    db.session.add(new_pjt)
+    db.session.commit()
+    project_id = new_pjt.id
+
+    # 加關聯project_plugin_relation
+    new_relation = model.ProjectPluginRelation(
+        project_id=project_id,
+        plan_project_id=redmine_pj_id,
+        git_repository_id=gitlab_pj_id,
+    )
+    db.session.add(new_relation)
+    db.session.commit()
+
+    return {
+        "project_id": project_id,
+        "plan_project_id": redmine_pj_id,
+        "git_repository_id": gitlab_pj_id,
+        "description": args["description"],
+        "project_url": f'http://{config.get("DEPLOYMENT_NAME")}/#/plan/{project_name}/overview',
+    }
+
+
+def create_project_add_father_project_members(owner_id: str, user_id: str, project_id: int, parent_pj_id: int) -> None:
+    for row in (
+        db.session.query(model.User, ProjectUserRole)
+        .join(model.User)
+        .filter(model.ProjectUserRole.project_id == parent_pj_id)
+        .all()
+    ):
+        if (
+            row.User.id not in [owner_id, user_id]
+            and not row.User.login.startswith("project_bot")
+            and row.ProjectUserRole.role_id != 7
+        ):
+            project_add_member(project_id, row.User.id)
+
+
+def create_project_add_nfs_folder(uuids: str, project_name: str):
+    # Create project NFS folder /(uuid)
+    for folder in ["pipeline", uuids]:
+        project_nfs_file_path = f"./devops-data/project-data/{project_name}/{folder}"
+        os.makedirs(project_nfs_file_path, exist_ok=True)
+        os.chmod(project_nfs_file_path, 0o777)
 
 
 def project_add_subadmin(project_id, user_id):
