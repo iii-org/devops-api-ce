@@ -32,6 +32,7 @@ from resources.notification_message import create_notification_message
 import secrets
 import base64
 import config
+from typing import Any
 
 # Make a regular expression
 default_role_id = 3
@@ -661,6 +662,12 @@ def delete_user(user_id):
     return None
 
 
+def delete_db_user(user_id: int):
+    del_user = model.User.query.filter_by(id=user_id).one()
+    db.session.delete(del_user)
+    db.session.commit()
+
+
 def change_user_status(user_id, args):
     disabled = False
     if args["status"] == "enable":
@@ -682,11 +689,26 @@ def change_user_status(user_id, args):
 
 
 @record_activity(ActionType.CREATE_USER)
-def create_user(args):
+def create_user(args: dict[str, Any]) -> dict[str, Any]:
     logger.info("Creating user...")
-    # Check if name is valid
-    login_name = args["login"]
-    force = args.get("force", False)
+    check_create_user_args(args)
+    server_user_id_mapping = create_user_in_servers(args)
+    logger.info("User created.")
+
+    return {
+        "user_id": server_user_id_mapping["db"]["id"],
+        "plan_user_id": server_user_id_mapping["redmine"]["id"],
+        "repository_user_id": server_user_id_mapping["gitlab"]["id"],
+    }
+
+
+def check_create_user_args(args: dict[str, Any]) -> None:
+    check_create_user_login_valid(args["login"])
+    check_create_user_pwd_valid(args["password"], args.get("from_ad", False))
+    check_create_user_login_email_unique(args["login"], args["email"], args.get("force", False))
+
+
+def check_create_user_login_valid(login_name: str) -> None:
     if re.fullmatch(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,58}[a-zA-Z0-9]$", login_name) is None:
         raise apiError.DevOpsError(
             400,
@@ -695,13 +717,10 @@ def create_user(args):
         )
     logger.info("Name is valid.")
 
-    user_source_password = args["password"]
-    #  User created by AD skip password check
-    # if 'from_ad' in args and args['from_ad'] is False:
-    need_password_check = True
-    if "from_ad" in args and args["from_ad"] is True:
-        need_password_check = False
 
+def check_create_user_pwd_valid(user_source_password: str, from_ad: bool) -> None:
+    #  User created by AD skip password check
+    need_password_check = not from_ad
     if (
         need_password_check is True
         and re.fullmatch(
@@ -713,11 +732,20 @@ def create_user(args):
         raise apiError.DevOpsError(400, "Error when creating new user", error=apiError.invalid_user_password())
     logger.info("Password is valid.")
 
+
+def check_create_user_login_email_unique(login_name: str, email: str, force: bool) -> None:
+    check_create_user_login_email_unique_db(login_name, email)
+    check_create_user_login_email_unique_redmine(login_name, email, force)
+    check_create_user_login_email_unique_gitlab(login_name, email, force)
+    check_create_user_login_email_unique_sonarqube(login_name, force)
+
+
+def check_create_user_login_email_unique_db(login_name: str, email: str) -> None:
     # Check DB has this login, email, if has, raise error
     check_count = model.User.query.filter(
         db.or_(
-            model.User.login == args["login"],
-            model.User.email == args["email"],
+            model.User.login == login_name,
+            model.User.email == email,
         )
     ).count()
     if check_count > 0:
@@ -728,9 +756,8 @@ def create_user(args):
         )
     logger.info("Account is unique.")
 
-    is_admin = args["role_id"] == role.ADMIN.id
-    logger.info(f"is_admin is {is_admin}")
 
+def check_create_user_login_email_unique_redmine(login_name: str, email: str, force: bool) -> None:
     # Check Redmine has this login, email, if has, raise error(if force remove it.)
     offset = 0
     limit = 25
@@ -740,7 +767,7 @@ def create_user(args):
         user_list_output = redmine.rm_get_user_list(params)
         total_count = user_list_output["total_count"]
         for user in user_list_output["users"]:
-            if user["login"] == args["login"] or user["mail"] == args["email"]:
+            if user["login"] == login_name or user["mail"] == email:
                 if force:
                     redmine.rm_delete_user(user["id"])
                     logger.info("Force is True, so delete this Redmine account.")
@@ -753,11 +780,13 @@ def create_user(args):
         offset += limit
     logger.info("Account name not used in Redmine or force is True.")
 
+
+def check_create_user_login_email_unique_gitlab(login_name: str, email: str, force: bool) -> None:
     # Check Gitlab has this login, email, if has, raise error(if force remove it.)
-    login_users = gitlab.gl.search(gitlab_pack.const.SEARCH_SCOPE_USERS, args["login"])
+    login_users = gitlab.gl.search(gitlab_pack.const.SEARCH_SCOPE_USERS, login_name)
     for login_user in login_users:
         gl_user = gitlab.gl.users.get(login_user["id"])
-        if gl_user.name == args["login"] or gl_user.email == args["email"]:
+        if gl_user.name == login_name or gl_user.email == email:
             if force:
                 gitlab.gl_delete_user(gl_user.id)
                 logger.info("Force is True, so delete this Gitlab account.")
@@ -769,6 +798,8 @@ def create_user(args):
                 )
     logger.info("Account name not used in Gitlab or force is True.")
 
+
+def check_create_user_login_email_unique_sonarqube(login_name: str, force: bool) -> None:
     # Check SonarQube has this login, if has, raise error(if force deactivate it.)
     page = 1
     page_size = 50
@@ -777,9 +808,9 @@ def create_user(args):
         params = {"p": page, "ps": page_size}
         output = sonarqube.sq_list_user(params).json()
         for user in output["users"]:
-            if user["login"] == args["login"]:
+            if user["login"] == login_name:
                 if force:
-                    sonarqube.sq_deactivate_user(args["login"])
+                    sonarqube.sq_deactivate_user(login_name)
                     logger.info("Force is True, so deactivate this SonarQube account.")
                 else:
                     raise DevOpsError(
@@ -791,19 +822,46 @@ def create_user(args):
         page += 1
     logger.info("Account name not used in SonarQube or force is True.")
 
-    # plan software user create
-    red_user = redmine.rm_create_user(args, user_source_password, is_admin=is_admin)
+
+def create_user_in_servers(args: dict[str, Any]) -> dict[str, dict[str:Any]]:
+    """
+    k8s: Use name to delete instead of id
+    Sonarqube: Can not be delete, can only deactivate(and use name instead)
+    """
+    server_user_id_mapping = {
+        "redmine": {"id": None, "delete_func": redmine.rm_delete_user},
+        "gitlab": {"id": None, "delete_func": gitlab.gl_delete_user},
+        "sonarqube": {"id": None, "delete_func": sonarqube.sq_deactivate_user},
+        "db": {"id": None, "delete_func": delete_db_user},
+    }
+    role_id = args["role_id"]
+    is_admin = role_id == role.ADMIN.id
+    logger.info(f"is_admin is {is_admin}")
+    try:
+        server_user_id_mapping["redmine"]["id"] = create_user_in_redmine(args, is_admin)
+        server_user_id_mapping["gitlab"]["id"] = create_user_in_gitlab(args, is_admin)
+        server_user_id_mapping["sonarqube"]["id"] = create_user_in_sonarqube(args)
+        server_user_id_mapping["db"] = {"id": create_user_in_db(args)}
+        create_user_in_other_dbs(server_user_id_mapping, role_id)
+    except Exception as e:
+        for _, id_delete_func_mapping in server_user_id_mapping.items():
+            user_id = id_delete_func_mapping["id"]
+            if id_delete_func_mapping["id"] is not None and _ != "db":
+                id_delete_func_mapping["delete_func"](user_id)
+        raise e
+    return server_user_id_mapping
+
+
+def create_user_in_redmine(args: dict[str, Any], is_admin: bool) -> int:
+    red_user = redmine.rm_create_user(args, args["password"], is_admin=is_admin)
     redmine_user_id = red_user["user"]["id"]
     logger.info(f"Redmine user created, id={redmine_user_id}")
+    return redmine_user_id
 
-    # gitlab software user create
-    try:
-        git_user = gitlab.gl_create_user(args, user_source_password, is_admin=is_admin)
-    except Exception as e:
-        redmine.rm_delete_user(redmine_user_id)
-        raise e
+
+def create_user_in_gitlab(args: dict[str, Any], is_admin: bool) -> int:
+    git_user = gitlab.gl_create_user(args, args["password"], is_admin=is_admin)
     gitlab_user_id = git_user["id"]
-    logger.info(f"Gitlab user created, id={gitlab_user_id}")
     if is_admin:
         # 加 role to admin_group
         gitlab_gp_id = gitlab.get_group_id_for_name(config.get("ADMIN_GROUP"))
@@ -811,86 +869,80 @@ def create_user(args):
             gitlab_gp_id = gitlab.gl_create_group(config.get("ADMIN_GROUP"))["id"]
         gitlab.gl_group_add_maintainer(gitlab_gp_id, gitlab_user_id)
         logger.info(f"Gitlab user add to admin_group, group_id={gitlab_gp_id}, user_id={gitlab_user_id}.")
-    # Sonarqube user create
-    # Caution!! Sonarqube cannot delete a user, can only deactivate
-    try:
-        sonarqube.sq_create_user(args)
-    except Exception as e:
-        gitlab.gl_delete_user(gitlab_user_id)
-        redmine.rm_delete_user(redmine_user_id)
-        raise e
+    logger.info(f"Gitlab user created, id={gitlab_user_id}")
+    return gitlab_user_id
+
+
+def create_user_in_sonarqube(args: dict[str, Any]) -> str:
+    sonarqube.sq_create_user(args)
     logger.info(f"Sonarqube user created.")
+    return args["login"]
 
-    try:
-        # DB
-        title = department = ""
-        h = SHA256.new()
-        h.update(args["password"].encode())
-        args["password"] = h.hexdigest()
-        disabled = False
 
-        if args["status"] == "disable":
-            disabled = True
-        if "title" in args:
-            title = args["title"]
-        if "department" in args:
-            department = args["department"]
-        user = model.User(
-            name=args["name"],
-            email=args["email"],
-            phone=args["phone"],
-            login=args["login"],
-            title=title,
-            department=department,
-            password=h.hexdigest(),
-            create_at=datetime.datetime.utcnow(),
-            disabled=disabled,
-            from_ad=("from_ad" in args) and (args["from_ad"]),
-        )
-        if "update_at" in args:
-            user.update_at = args["update_at"]
-        if "last_login" in args:
-            user.last_login = args.get("last_login")
-        db.session.add(user)
-        db.session.commit()
+def create_user_in_db(args: dict[str, Any]) -> int:
+    title = department = ""
+    h = SHA256.new()
+    h.update(args["password"].encode())
+    args["password"] = h.hexdigest()
+    disabled = False
 
-        user_id = user.id
-        logger.info(f"Nexus user created, id={user_id}")
+    if args["status"] == "disable":
+        disabled = True
+    if "title" in args:
+        title = args["title"]
+    if "department" in args:
+        department = args["department"]
+    user = model.User(
+        name=args["name"],
+        email=args["email"],
+        phone=args["phone"],
+        login=args["login"],
+        title=title,
+        department=department,
+        password=h.hexdigest(),
+        create_at=datetime.datetime.utcnow(),
+        disabled=disabled,
+        from_ad=("from_ad" in args) and (args["from_ad"]),
+    )
+    if "update_at" in args:
+        user.update_at = args["update_at"]
+    if "last_login" in args:
+        user.last_login = args.get("last_login")
+    db.session.add(user)
+    db.session.commit()
 
-        # insert user_plugin_relation table
-        rel = model.UserPluginRelation(
-            user_id=user_id,
-            plan_user_id=redmine_user_id,
-            repository_user_id=gitlab_user_id,
-        )
-        db.session.add(rel)
-        db.session.commit()
-        logger.info(f"Nexus user_plugin built.")
+    user_id = user.id
+    logger.info(f"Nexus user created, id={user_id}")
+    return user_id
 
-        # insert project_user_role
-        rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=args["role_id"])
-        db.session.add(rol)
-        db.session.commit()
-        logger.info(f"Nexus user project_user_role created.")
 
-        # insert user_message_type
-        row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=False)
-        db.session.add(row)
-        db.session.commit()
-        logger.info(f"Nexus user_message_type created.")
-    except Exception as e:
-        # harbor.hb_delete_user(harbor_user_id)
-        gitlab.gl_delete_user(gitlab_user_id)
-        redmine.rm_delete_user(redmine_user_id)
-        sonarqube.sq_deactivate_user(args["login"])
-        raise e
+def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], role_id: int):
+    # insert user_plugin_relation table
+    user_id = server_user_id_mapping["db"]["id"]
 
-    logger.info("User created.")
-    return {
-        "user_id": user_id,
-        "plan_user_id": redmine_user_id,
-        "repository_user_id": gitlab_user_id,
-    }
+    rel = model.UserPluginRelation(
+        user_id=user_id,
+        plan_user_id=server_user_id_mapping["redmine"]["id"],
+        repository_user_id=server_user_id_mapping["gitlab"]["id"],
+    )
+    db.session.add(rel)
+    db.session.commit()
+    logger.info(f"Nexus user_plugin built.")
+
+    # insert project_user_role
+    rol = model.ProjectUserRole(project_id=-1, user_id=user_id, role_id=role_id)
+    db.session.add(rol)
+    db.session.commit()
+    logger.info(f"Nexus user project_user_role created.")
+
+    # insert user_message_type
+    row = model.UserMessageType(user_id=user_id, teams=False, notification=True, mail=False)
+    db.session.add(row)
+    db.session.commit()
+    logger.info(f"Nexus user_message_type created.")
+
+
+########## Create User End ##########
 
 
 def user_list(filters):
