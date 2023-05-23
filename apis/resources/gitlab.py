@@ -53,6 +53,7 @@ from resources.notification_message import (
 
 GITLAB_NOTFOUND = exceptions
 GITLAB_DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+DEFAULT_REPO = "iiidevops"
 iiidevops_system_group = ["iiidevops-templates", "local-templates", "iiidevops-catalog", config.get("ADMIN_GROUP")]
 
 """
@@ -210,10 +211,32 @@ class GitLab(object):
         return self.gl.projects.list(all=True)
 
     def gl_create_project(self, args):
+        """
+        params: args:
+        - *name: project name
+        - namespace_id: group of the project
+        - *description: project's description
+        """
         return self.__api_post(
             "/projects",
-            params={"name": args["name"], "description": args["description"]},
+            params=args,
+            # params={"name": args["name"], "namespace_id": args["namespace_id"] ,"description": args["description"]},
         ).json()
+
+    def create_project(self, kwargs: dict[str, Any]):
+        """
+        params: kwarg:
+        - name: project name
+        - group_name: group of the project
+        - description: project's description
+        """
+        group_name = kwargs.pop("group_name", DEFAULT_REPO)
+        group_info = self.gl_get_specific_namespace(group_name)
+        if not group_info:
+            return self.gl_create_project({"name": kwargs["name"], "description": kwargs["description"]})
+        return self.gl_create_project(
+            {"name": kwargs["name"], "description": kwargs["description"], "namespace_id": group_info["id"]}
+        )
 
     def gl_get_project(self, repo_id):
         return self.__api_get(f"/projects/{repo_id}", {"statistics": "true"}).json()
@@ -309,10 +332,7 @@ class GitLab(object):
     def gl_delete_user_email(self, gitlab_user_id, gitlab_email_id):
         return self.__api_delete(f"/users/{gitlab_user_id}/emails/{gitlab_email_id}")
 
-    def gl_count_branches(self, repo_id):
-        output = self.__api_get(f"/projects/{repo_id}/repository/branches")
-        return len(output.json())
-
+    """
     def gl_create_rancher_pipeline_yaml(self, repo_id, args, method):
         path = f'/projects/{repo_id}/repository/files/{args["file_path"]}'
         params = {}
@@ -333,6 +353,7 @@ class GitLab(object):
             f'/projects/{project_id}/repository/files/{args["file_path"]}',
             params={"ref": args["branch"]},
         )
+    """
 
     def gl_get_branches(self, repo_id):
         gl_total_branch_list = []
@@ -592,10 +613,6 @@ class GitLab(object):
                 output.append(commit)
         return output
 
-    def convert_login_to_mail(self, login):
-        user = model.User.query.filter_by(login=login).one()
-        return user.email
-
     def gl_get_commits_by_members(self, project_id, branch):
         commits = self.gl_get_commits(project_id, branch)
         output = []
@@ -661,10 +678,6 @@ class GitLab(object):
     def gl_create_release(self, repo_id, data):
         path = f"/projects/{repo_id}/releases"
         return self.__api_post(path, params=data).json()
-
-    def gl_update_release(self, repo_id, tag_name, data):
-        path = f"/projects/{repo_id}/releases/{tag_name}"
-        return self.__api_put(path, params=data).json()
 
     def gl_delete_release(self, repo_id, tag_name):
         path = f"/projects/{repo_id}/releases/{tag_name}"
@@ -924,6 +937,18 @@ class GitLab(object):
         page = (start // limit) + 1
         return page
 
+    # namespace
+    def gl_list_namespace(self):
+        return self.__api_get("/namespaces").json()
+
+    def gl_get_specific_namespace(self, namespace_name: str):
+        rets = self.__api_get("/namespaces", params={"search": namespace_name}).json()
+        for ret in rets:
+            if ret["name"] == namespace_name:
+                return ret
+
+        return {}
+
     # pipeline
     def gl_list_pipelines(
         self,
@@ -993,6 +1018,59 @@ class GitLab(object):
         sha = latest_pipeline_info["sha"]
         commit_msg = self.single_commit(repo_id, sha)["title"]
         return self.create_commit(repo_id, branch, commit_msg)
+
+    ## variable
+    def gl_get_all_global_variable(self):
+        return self.__api_get("/admin/ci/variables").json()
+
+    def gl_get_global_variable(self, key: str):
+        return self.__api_get(f"/admin/ci/variables/{key}").json()
+
+    def gl_create_global_variable(self, data: dict[str, str]):
+        """
+        param: data:
+        - key: key of the variable
+        - value: content of the variable
+        - variable_type: env_var / file
+        """
+        return self.__api_post("/admin/ci/variables", data=data).json()
+
+    def gl_update_global_variable(self, key: str, data: dict[str, str]):
+        """
+        param: data:
+        - value(str): content of the variable
+        - variable_type(str): env_var / file
+        - protected(bool):
+        - masked(bool):
+        """
+        return self.__api_put(f"/admin/ci/variables/{key}", data=data).json()
+
+    def gl_delete_global_variable(self, key: str):
+        return self.__api_delete(f"/admin/ci/variables/{key}").json()
+
+    def gl_get_pj_variable(self, repo_id: int):
+        return self.__api_get(f"/projects/{repo_id}/variables").json
+
+    def gl_create_pj_variable(self, repo_id: int, data: dict[str, str]):
+        """
+        param: data:
+        - key(str): key of the variable
+        - value(str): content of the variable
+        - variable_type(str): env_var / file
+        - protected(bool): only export variable on protected branch
+        - masked(bool): value will be masked in job logs
+        - raw: treated special character as the start of a reference to another variable
+        """
+        return self.__api_post(f"/projects/{repo_id}/variables", data=data).json
+
+    def gl_delete_pj_variable(self, repo_id: int, key: str):
+        return self.__api_delete(f"/projects/{repo_id}/variables/{key}").json
+
+    def create_pj_variable(self, repo_id: int, key: str, value: str, attribute: dict[str, Any] = {}):
+        data = {"variable_type": "env_var", "protected": False, "masked": True, "raw": True}
+        data |= attribute
+        data.update({"key": key, "value": value})
+        return self.gl_create_pj_variable(repo_id, data)
 
 
 def single_file(
@@ -1836,21 +1914,3 @@ class GitlabSourceCodeV2(MethodResource):
             except Exception as e:
                 model.db.session.rollback()
                 return util.respond(401, "insert failed.", error=e)
-
-
-# class GitlabPipelineJobConsole(Resource):
-#     @jwt_required()
-#     def get(self, repository_id, job_id):
-#         return util.success(gitlab.get_pipeline_console(repository_id, job_id))
-
-
-# class GitlabPipelineJobRetry(Resource):
-#     @jwt_required()
-#     def post(self, repository_id, job_id):
-#         return util.success(gitlab.retry_pipeline_job(repository_id, job_id))
-
-
-# class GitlabPipelineJobStop(Resource):
-#     @jwt_required()
-#     def post(self, repository_id, job_id):
-#         return util.success(gitlab.gl_stop_pipeline_job(repository_id, job_id))
