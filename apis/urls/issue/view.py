@@ -671,7 +671,7 @@ class IssueWatcherV2(MethodResource):
     @jwt_required()
     def post(self, **kwargs):
         user_id, issue_id = kwargs.get('user_id', get_jwt_identity()['user_id']), kwargs['issue_id']
-        rm_user_id = {'user_id': UserPluginRelation.query.filter_by(user_id=user_id) .first().plan_user_id}
+        rm_user_id = {'user_id': UserPluginRelation.query.filter_by(user_id=user_id).first().plan_user_id}
         try:
             add_issue_watcher(issue_id, rm_user_id)
             all_watcher_info = get_user_issue_watcher_list()
@@ -694,7 +694,7 @@ class IssueRemoveWatcher(MethodResource):
     @jwt_required()
     def delete(self, **kwargs):
         user_id, issue_id = kwargs['user_id'], kwargs['issue_id']
-        rm_user_id = UserPluginRelation.query.filter_by(user_id=user_id) .first().plan_user_id
+        rm_user_id = UserPluginRelation.query.filter_by(user_id=user_id).first().plan_user_id
         try:
             remove_issue_watcher(issue_id,rm_user_id)
             all_watcher_info = get_user_issue_watcher_list()

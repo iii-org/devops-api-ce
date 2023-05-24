@@ -3,7 +3,7 @@ from resources.sync_redmine import init_data
 from resources import project, project_relation
 from resources import logger
 from resources.devops_version import register_in_vc
-
+from resources import issue
 
 def error_handler(func):
     def wrap(*args, **kwargs):
@@ -41,3 +41,9 @@ def sync_project_relation() -> None:
 @error_handler
 def report_to_version_center() -> None:
     register_in_vc()
+
+
+@celery.task(name="sync_issue_watcher_list")
+@error_handler
+def sync_issue_watcher_list() -> None:
+    issue.sync_issue_watcher_list()
