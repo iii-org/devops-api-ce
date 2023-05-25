@@ -192,12 +192,6 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
 
     return ret
 
-    if limit is not None and offset is not None:
-        page_dict = util.get_pagination(counts, limit, offset)
-        return {"project_list": ret, "page": page_dict}
-
-    return ret
-
 
 def get_project_rows_by_user(user_id, disable, args={}):
     search: str = args.get("search")
