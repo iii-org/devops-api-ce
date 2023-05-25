@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
+from time import sleep
 from typing import Optional
 
 from flask_socketio import Namespace, emit, join_room, leave_room
@@ -30,7 +31,7 @@ from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
 from resources.activity import record_activity
 from resources import tag as tag_py
-from resources.user import user_list_by_project
+from resources.user import user_list_by_project, get_user_id_from_redmine_id
 from resources import logger
 from resources.lock import get_lock_status
 from resources.project_relation import (
@@ -51,8 +52,11 @@ from resources.redis import (
     add_issue_relation,
     update_pj_issue_calc,
     get_all_issue_relations,
+    set_user_issue_watcher_list,
+    get_user_issue_watcher_list
 )
 from datetime import date
+import logging
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {"1": "文字", "2": "英數字", "3": "英文字", "4": "數字"}
@@ -1220,6 +1224,31 @@ def get_issue_datetime_status(project_id:str) -> dict[str, int]:
     return output
 
 
+def add_issue_watcher(isse_id: int, user_id: dict):
+    return redmine.rm_add_watcher(isse_id, user_id)
+
+
+def remove_issue_watcher(issue_id: int, user_id: dict):
+    return redmine.rm_remove_watcher(issue_id, user_id)
+
+
+def sync_issue_watcher_list():
+    user_watcher_list = get_user_issue_watcher_list()
+    try:
+        for issue in redmine_lib.rm_get_all_issue():
+            issue_watcher_info = issue.watchers._resources
+            if issue_watcher_info:
+                for info in issue_watcher_info:
+                    user_id = get_user_id_from_redmine_id(info.get('id'))
+                    if user_watcher_list.get(user_id, None) is None:
+                        user_watcher_list[user_id] = [issue.id]
+                    else:
+                        user_watcher_list[user_id].append(issue.id)
+    except Exception as e:
+        logging.info(e)
+    set_user_issue_watcher_list(user_watcher_list)
+
+
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
         return []
@@ -2353,6 +2382,15 @@ def delete_issue_relation(relation_id, user_account):
         broadcast=True,
     )
 
+def delete_issue_tag(tag_id: int) -> None:
+    all_issue = model.IssueTag.query.filter(model.IssueTag.tag_id != []) #.filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    for issue in all_issue:
+        if tag_id in issue.tag_id:
+            issue.tag_id.remove(tag_id)
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            db.session.commit()
+            sleep(0.5)
+            continue
 
 def check_issue_closable(issue_id):
     # loop 離開標誌
@@ -2520,106 +2558,107 @@ def pj_download_file_is_exist(project_id):
     }
 
 
-# class DownloadIssueAsExcel:
-#     def __init__(self, args, priority_id, user_id):
-#         self.result = []
-#         self.levels = args.pop("levels")
-#         self.deploy_column = args.pop("deploy_column")
-#         self.args = args
-#         self.project_id = priority_id
-#         self.__get_operator_id(user_id)
+class DownloadIssueAsExcel:
+    def __init__(self, args, priority_id, user_id):
+        self.result = []
+        self.levels = args.pop("levels")
+        self.deploy_column = args.pop("deploy_column")
+        self.args = args
+        self.project_id = priority_id
+        self.__get_operator_id(user_id)
 
-#     def __get_operator_id(self, user_id):
-#         self.operator_id = model.UserPluginRelation.query.filter_by(user_id=user_id).one().plan_user_id
-#         self.user_name = model.User.query.get(int(user_id)).login
+    def __get_operator_id(self, user_id):
+        self.operator_id = model.UserPluginRelation.query.filter_by(user_id=user_id).one().plan_user_id
+        self.user_name = model.User.query.get(int(user_id)).login
 
-#     def execute(self):
-#         try:
-#             logger.logger.info("Start writing issues into excel.")
-#             self.__update_lock_download_issues(is_lock=True, sync_date=self.__now_time())
-#             self.__append_main_issue()
-#             self.__update_lock_download_issues(is_lock=False, sync_date=self.__now_time())
-#             logger.logger.info("Writing complete")
-#         except Exception as e:
-#             logger.logger.exception(str(e))
-#             self.__update_lock_download_issues(is_lock=False, sync_date=None)
+    def execute(self):
+        try:
+            logger.logger.info("Start writing issues into excel.")
+            self.__update_lock_download_issues(is_lock=True, sync_date=self.__now_time())
+            self.__append_main_issue()
+            self.__update_lock_download_issues(is_lock=False, sync_date=self.__now_time())
+            logger.logger.info("Writing complete")
+        except Exception as e:
+            logger.logger.exception(str(e))
+            print('e = ', e)
+            self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
-#     def __now_time(self):
-#         return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    def __now_time(self):
+        return datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-#     def __append_main_issue(self):
-#         print(self.args)
-#         output = get_issue_list_by_project_helper(
-#             self.project_id, self.args, download=True, operator_id=self.operator_id
-#         )
-#         for index, value in enumerate(output):
-#             row = self.__generate_row_issue_for_excel(str(index + 1), value)
-#             self.result.append(row)
-#             self.__append_children(index + 1, value, 1)
+    def __append_main_issue(self):
+        print(self.args)
+        output = get_issue_list_by_project_helper(
+            self.project_id, self.args, download=True, operator_id=self.operator_id
+        )
+        for index, value in enumerate(output):
+            row = self.__generate_row_issue_for_excel(str(index + 1), value)
+            self.result.append(row)
+            self.__append_children(index + 1, value, 1)
 
-#         self.__download_as_excel()
+        self.__download_as_excel()
 
-#     def __append_children(self, super_index, value, level):
-#         if not value["has_children"] or self.levels == level:
-#             return
-#         redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(
-#             value["id"], include=["children"]
-#         )
-#         children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True))
-#         for index, child in enumerate(children):
-#             row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
-#             self.result.append(row)
-#             self.__append_children(f"{super_index}_{index+1}", child, level + 1)
+    def __append_children(self, super_index, value, level):
+        if not value["has_children"] or self.levels == level:
+            return
+        redmine_issue = redmine_lib.rm_impersonate(self.user_name, sync=True).issue.get(
+            value["id"], include=["children"]
+        )
+        children = get_issue_children(redmine_issue, redmine_lib.rm_impersonate(self.user_name, sync=True))
+        for index, child in enumerate(children):
+            row = self.__generate_row_issue_for_excel(f"{super_index}_{index + 1}", child)
+            self.result.append(row)
+            self.__append_children(f"{super_index}_{index+1}", child, level + 1)
 
-#     def __generate_row_issue_for_excel(self, index, value):
-#         english = len(re.findall(r"[\u4e00-\u9fff]+", self.deploy_column[0]["display"])) == 0
-#         result = {"index": index} if english else {"項次": index}
-#         for column in self.deploy_column:
-#             if column["field"] == "name":
-#                 result.update({column["display"]: value["name"]})
-#             if column["field"] == "tracker" and not english:
-#                 result.update({column["display"]: TRACKER_TRANSLATE[value["tracker"]["name"]]})
-#             elif column["field"] == "tracker" and english:
-#                 result.update({column["display"]: value["tracker"]["name"]})
+    def __generate_row_issue_for_excel(self, index, value):
+        english = len(re.findall(r"[\u4e00-\u9fff]+", self.deploy_column[0]["display"])) == 0
+        result = {"index": index} if english else {"項次": index}
+        for column in self.deploy_column:
+            if column["field"] == "name":
+                result.update({column["display"]: value["name"]})
+            if column["field"] == "tracker" and not english:
+                result.update({column["display"]: TRACKER_TRANSLATE[value["tracker"]["name"]]})
+            elif column["field"] == "tracker" and english:
+                result.update({column["display"]: value["tracker"]["name"]})
 
-#             if column["field"] == "status" and not english:
-#                 result.update({column["display"]: STATUS_TRANSLATE[value["status"]["name"]]})
-#             elif column["field"] == "status" and english:
-#                 result.update({column["display"]: value["status"]["name"]})
+            if column["field"] == "status" and not english:
+                result.update({column["display"]: STATUS_TRANSLATE[value["status"]["name"]]})
+            elif column["field"] == "status" and english:
+                result.update({column["display"]: value["status"]["name"]})
 
-#             if column["field"] == "fixed_version":
-#                 result.update(
-#                     {column["display"]: value["fixed_version"]["name"] if value["fixed_version"] != {} else ""}
-#                 )
-#             if column["field"] == "StartDate":
-#                 result.update({column["display"]: value["start_date"]})
-#             if column["field"] == "EndDate":
-#                 result.update({column["display"]: value["due_date"]})
-#             if column["field"] == "priority" and not english:
-#                 result.update({column["display"]: PRIORITY_TRANSLATE[value["priority"]["name"]]})
-#             elif column["field"] == "priority" and english:
-#                 result.update({column["display"]: value["priority"]["name"]})
+            if column["field"] == "fixed_version":
+                result.update(
+                    {column["display"]: value["fixed_version"]["name"] if value["fixed_version"] != {} else ""}
+                )
+            if column["field"] == "StartDate":
+                result.update({column["display"]: value["start_date"]})
+            if column["field"] == "EndDate":
+                result.update({column["display"]: value["due_date"]})
+            if column["field"] == "priority" and not english:
+                result.update({column["display"]: PRIORITY_TRANSLATE[value["priority"]["name"]]})
+            elif column["field"] == "priority" and english:
+                result.update({column["display"]: value["priority"]["name"]})
 
-#             if column["field"] == "assigned_to":
-#                 result.update({column["display"]: value["assigned_to"]["name"] if value["assigned_to"] != {} else ""})
-#             if column["field"] == "DoneRatio":
-#                 result.update({column["display"]: value["done_ratio"]})
-#             if column["field"] == "points":
-#                 result.update({column["display"]: value.get("point", 0)})
-#         return result
+            if column["field"] == "assigned_to":
+                result.update({column["display"]: value["assigned_to"]["name"] if value["assigned_to"] != {} else ""})
+            if column["field"] == "DoneRatio":
+                result.update({column["display"]: value["done_ratio"]})
+            if column["field"] == "points":
+                result.update({column["display"]: value.get("point", 0)})
+        return result
 
-#     def __download_as_excel(self):
-#         if not os.path.isdir("./logs/project_excel_file"):
-#             os.makedirs("./logs/project_excel_file", exist_ok=True)
-#         util.write_in_excel(f"logs/project_excel_file/{self.project_id}.xlsx", self.result)
+    def __download_as_excel(self):
+        if not os.path.isdir("./logs/project_excel_file"):
+            os.makedirs("./logs/project_excel_file", exist_ok=True)
+        util.write_in_excel(f"logs/project_excel_file/{self.project_id}.xlsx", self.result)
 
-#     def __update_lock_download_issues(self, is_lock=None, sync_date=None):
-#         lock_redmine = model.Lock.query.filter_by(name="download_pj_issues").first()
-#         if is_lock is not None:
-#             lock_redmine.is_lock = is_lock
-#         if sync_date is not None:
-#             lock_redmine.sync_date = sync_date
-#         db.session.commit()
+    def __update_lock_download_issues(self, is_lock=None, sync_date=None):
+        lock_redmine = model.Lock.query.filter_by(name="download_pj_issues").first()
+        if is_lock is not None:
+            lock_redmine.is_lock = is_lock
+        if sync_date is not None:
+            lock_redmine.sync_date = sync_date
+        db.session.commit()
 
 
 @record_activity(ActionType.MODIFY_HOOK)
