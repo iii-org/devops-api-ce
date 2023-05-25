@@ -162,7 +162,7 @@ def get_nexux_project(row_project: object, user_id:int,role: str, sync:bool, use
         return start_project.to_json()
 
 
-def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
+def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disable: bool = None, sync: bool = False):
     '''
     List all project when role is equal to simple, so avoid do something if role == simple. 
     '''
@@ -182,7 +182,7 @@ def get_project_list(user_id, role="simple", args={}, disable=None, sync=False):
         nexus_project = get_nexux_project(row_project=row,user_id=user_id,role=role, sync=sync, user_name=user_name, extra_data=extra_data, pj_members_count=pj_members_count)
         if parent_son:
             project_id = model.ProjectPluginRelation.query.filter_by(plan_project_id=redmine_project_id).first().project_id
-            son = get_son_project_by_redmine_id(project_id, role,user_id,extra_data, pj_members_count, user_name,sync, start=True)            
+            son = get_son_project_by_redmine_id(project_id, role, user_id, extra_data, pj_members_count, user_name, sync, start=True)
             nexus_project['children'] = son.get('children', [])
         ret.append(nexus_project)
     logging.info('Successful get all project')
