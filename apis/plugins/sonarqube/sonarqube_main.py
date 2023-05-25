@@ -113,20 +113,19 @@ def sq_delete_project(project_name):
 def sq_list_member(project_name, params):
     # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
     return __api_get(
-        f"/permissions/users?projectKey={project_name}" f"&permission=scan",
+        f"/permissions/users?projectKey={project_name}" f"&permission=codeviewer&permission=user",
         params=params,
     )
 
 
 def sq_add_member(project_name, user_login):
     # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
-    # __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=admin")
-    return __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=scan")
+    __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=user")
+    return __api_post(f"/permissions/add_user?login={user_login}" f"&projectKey={project_name}&permission=codeviewer")
 
 
 def sq_remove_member(project_name, user_login):
-    # The 'permission' parameter must be one of admin, profileadmin, gateadmin, scan, provisioning.
-    return __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=scan")
+    return __api_post(f"/permissions/remove_user?login={user_login}" f"&projectKey={project_name}&permission=user")
 
 
 def sq_create_access_token(login):
