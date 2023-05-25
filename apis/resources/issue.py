@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, date, timedelta
 from distutils.util import strtobool
+from time import sleep
 from typing import Optional
 
 from flask_socketio import Namespace, emit, join_room, leave_room
@@ -30,7 +31,7 @@ from resources.redmine import redmine, get_redmine_obj
 from resources import project as project_module, project, role
 from resources.activity import record_activity
 from resources import tag as tag_py
-from resources.user import user_list_by_project
+from resources.user import user_list_by_project, get_user_id_from_redmine_id
 from resources import logger
 from resources.lock import get_lock_status
 from resources.project_relation import (
@@ -51,8 +52,11 @@ from resources.redis import (
     add_issue_relation,
     update_pj_issue_calc,
     get_all_issue_relations,
+    set_user_issue_watcher_list,
+    get_user_issue_watcher_list
 )
 from datetime import date
+import logging
 
 FLOW_TYPES = {"0": "Given", "1": "When", "2": "Then", "3": "But", "4": "And"}
 PARAMETER_TYPES = {"1": "文字", "2": "英數字", "3": "英文字", "4": "數字"}
@@ -1220,6 +1224,31 @@ def get_issue_datetime_status(project_id:str) -> dict[str, int]:
     return output
 
 
+def add_issue_watcher(isse_id: int, user_id: dict):
+    return redmine.rm_add_watcher(isse_id, user_id)
+
+
+def remove_issue_watcher(issue_id: int, user_id: dict):
+    return redmine.rm_remove_watcher(issue_id, user_id)
+
+
+def sync_issue_watcher_list():
+    user_watcher_list = get_user_issue_watcher_list()
+    try:
+        for issue in redmine_lib.rm_get_all_issue():
+            issue_watcher_info = issue.watchers._resources
+            if issue_watcher_info:
+                for info in issue_watcher_info:
+                    user_id = get_user_id_from_redmine_id(info.get('id'))
+                    if user_watcher_list.get(user_id, None) is None:
+                        user_watcher_list[user_id] = [issue.id]
+                    else:
+                        user_watcher_list[user_id].append(issue.id)
+    except Exception as e:
+        logging.info(e)
+    set_user_issue_watcher_list(user_watcher_list)
+
+
 def get_issue_by_project(project_id, args):
     if util.is_dummy_project(project_id):
         return []
@@ -2353,6 +2382,15 @@ def delete_issue_relation(relation_id, user_account):
         broadcast=True,
     )
 
+def delete_issue_tag(tag_id: int) -> None:
+    all_issue = model.IssueTag.query.filter(model.IssueTag.tag_id != []) #.filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    for issue in all_issue:
+        if tag_id in issue.tag_id:
+            issue.tag_id.remove(tag_id)
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            db.session.commit()
+            sleep(0.5)
+            continue
 
 def check_issue_closable(issue_id):
     # loop 離開標誌
