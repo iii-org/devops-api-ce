@@ -33,9 +33,9 @@ celery_config = {
             "task": "report_to_version_center",
             "schedule": crontab(minute="3", hour="0"),
         },
-        "sync_issue_watcher_list": {
+        "sync_issue_watcher_list": {             # 執行時間莫4分鐘
             "task": "sync_issue_watcher_list",
-            "schedule": crontab(minute="4", hour="0"),
+            "schedule": crontab(minute='4'),
         },
     },
 }

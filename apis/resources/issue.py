@@ -1233,20 +1233,21 @@ def remove_issue_watcher(issue_id: int, user_id: dict):
 
 
 def sync_issue_watcher_list():
-    user_watcher_list = get_user_issue_watcher_list()
+    set_user_issue_watcher_list(defaultdict())
+    user_watcher_list = defaultdict()
     try:
         for issue in redmine_lib.rm_get_all_issue():
             issue_watcher_info = issue.watchers._resources
-            if issue_watcher_info:
-                for info in issue_watcher_info:
-                    user_id = get_user_id_from_redmine_id(info.get('id'))
-                    if user_watcher_list.get(user_id, None) is None:
-                        user_watcher_list[user_id] = [issue.id]
-                    else:
-                        user_watcher_list[user_id].append(issue.id)
+            for info in issue_watcher_info:
+                user_id = get_user_id_from_redmine_id(info.get('id'))
+                if user_watcher_list.get(str(user_id), None) is None:
+                    user_watcher_list[str(user_id)] = [issue.id]
+                else:
+                    user_watcher_list[str(user_id)].append(issue.id)
     except Exception as e:
         logging.info(e)
     set_user_issue_watcher_list(user_watcher_list)
+    logging.info('Success sync watcher list to redis.')
 
 
 def get_issue_by_project(project_id, args):
