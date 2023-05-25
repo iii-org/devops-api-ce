@@ -22,6 +22,8 @@ from marshmallow import Schema, fields
 
 security_params = [{"bearer": []}]
 
+import pandas as pd
+
 
 def base64decode(value):
     return str(base64.b64decode(str(value)).decode("utf-8"))
@@ -396,9 +398,10 @@ def check_folder_exist(path, create=False):
         os.makedirs(path)
     return exist
 
-    # def write_in_excel(file_path, content):
-    #     df = pd.DataFrame(content)
-    #     df.to_excel(file_path, index=False)
+
+def write_in_excel(file_path, content):
+    df = pd.DataFrame(content)
+    df.to_excel(file_path, index=False)
 
 
 def is_json(content):

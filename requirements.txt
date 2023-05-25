@@ -34,3 +34,4 @@ Werkzeug==2.2.3
 XlsxWriter==3.0.3
 Markdown==3.4.3
 celery==5.2.7
+pandas==1.4.2
