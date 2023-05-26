@@ -941,6 +941,13 @@ class ProjectFileV2(MethodResource):
         if get_jwt_identity()["user_id"] is not None:
             operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=get_jwt_identity()["user_id"])
             plan_operator_id = operator_plugin_relation.plan_user_id
+        kwargs["file"] = kwargs.pop("upload_file")
+        file = kwargs["file"]
+        if file is None:
+            raise DevOpsError(400, "No file is sent.", error=apiError.argument_error("file"))
+        from resources.system_parameter import check_upload_type
+
+        check_upload_type(file)
         personal_redmine_obj = get_redmine_obj(plan_user_id=plan_operator_id)
         return personal_redmine_obj.rm_upload_to_project(plan_project_id, kwargs)
 
