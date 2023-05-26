@@ -1,6 +1,8 @@
 import json
 import os
 from pathlib import Path
+import subprocess
+from dotenv import load_dotenv
 
 FIXED = {
     # API versions
@@ -10,18 +12,25 @@ FIXED = {
     "USE_RELOADER": False,
     "DOCUMENT_LEVEL": "public",
     "VERSION_CENTER_BASE_URL": "http://version-center.iiidevops.org",
-    "ADMIN_GROUP": "sys-admin"
+    "ADMIN_GROUP": "sys-admin",
 }
 
-in_file = {}
-JSON_FILE: Path = Path(__file__).parent.parent / "environments.json"
-if os.path.isfile(JSON_FILE):
-    with open(JSON_FILE, "r") as f:
-        in_file = json.load(f)
+
+def get_current_branch():
+    command = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, _ = process.communicate()
+    current_branch = output.decode().strip()
+    return current_branch
+
+
+def insert_env_file_in_env():
+    env_files_folder = Path(__file__).parent.parent / "env"
+    if os.path.exists(env_files_folder):
+        current_branch = get_current_branch()
+        env_files_folder = env_files_folder / f"{current_branch}.env"
+        load_dotenv(env_files_folder)
 
 
 def get(key):
-    env = os.getenv(key)
-    if env is not None:
-        return env
-    return in_file.get(key, FIXED.get(key, None))
+    return os.getenv(key) or FIXED.get(key)
