@@ -981,15 +981,15 @@ def get_all_reports(project_id):
     memory_file = BytesIO()
     with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
         # newman
-        if not plugins.get_plugin_config("postman")["disabled"]:
-            row = (
-                model.TestResults.query.filter_by(project_id=project_id)
-                .order_by(desc(model.TestResults.id))
-                .limit(1)
-                .first()
-            )
-            if row is not None:
-                zf.writestr("postman.json", row.report)
+        # if not plugins.get_plugin_config("postman")["disabled"]:
+        #     row = (
+        #         model.TestResults.query.filter_by(project_id=project_id)
+        #         .order_by(desc(model.TestResults.id))
+        #         .limit(1)
+        #         .first()
+        #     )
+        #     if row is not None:
+        #         zf.writestr("postman.json", row.report)
 
         if not plugins.get_plugin_config("sonarqube")["disabled"]:
             zf.writestr("sonarqube.json", str(sonarqube.sq_get_current_measures(project_name)))
