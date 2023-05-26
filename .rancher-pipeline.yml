@@ -77,8 +77,8 @@ stages:
       - jonathan
       - wbs
       - excalidraw
-      - pre-dev
       - redmine-watcher
+      - module-redis
 - name: Build--Build and push docker image
   iiidevops: deployed-environments
   steps:
@@ -101,8 +101,8 @@ stages:
       - jonathan
       - wbs
       - excalidraw
-      - pre-dev
       - redmine-watcher
+      - module-redis
 - name: Build--Scan docker image
   iiidevops: deployed-environments
   steps:
@@ -121,8 +121,8 @@ stages:
       - jonathan
       - wbs
       - excalidraw
-      - pre-dev
       - redmine-watcher
+      - module-redis
 - name: Build--Copy Image
   iiidevops: deployed-environments
   steps:
@@ -157,8 +157,8 @@ stages:
       - jonathan
       - wbs
       - excalidraw
-      - pre-dev
       - redmine-watcher
+      - module-redis
 - name: Deploy--Web
   iiidevops: deployed-environments
   steps:
@@ -186,8 +186,8 @@ stages:
       - jonathan
       - wbs
       - excalidraw
-      - pre-dev
       - redmine-watcher
+      - module-redis
 - name: Deploy--Wait Web deployment
   iiidevops: deployed-environments
   steps:
@@ -213,8 +213,8 @@ stages:
       - jonathan
       - wbs
       - excalidraw
-      - pre-dev
       - redmine-watcher
+      - module-redis
 - name: Test--Anchore SBOM
   iiidevops: anchore
   steps:
