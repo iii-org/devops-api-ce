@@ -237,8 +237,8 @@ def get_project_rows_by_user(user_id, disable, args={}):
         query: Query = query.filter(
             or_(
                 Project.owner_id.in_(owner_ids),
-                Project.display.like(f"%{search}%"),
-                Project.name.like(f"%{search}%"),
+                Project.display.ilike(f"%{search}%"),
+                Project.name.ilike(f"%{search}%"),
             )
         )
         stared_project_objects: list[Project] = [
