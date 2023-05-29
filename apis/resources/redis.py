@@ -9,12 +9,20 @@ from resources import logger
 ISSUE_FAMILIES_KEY = "issue_families"
 PROJECT_ISSUE_CALCULATE_KEY = "project_issue_calculation"
 SERVER_ALIVE_KEY = "system_all_alive"
-TEMPLATE_CACHE = "template_list_cache"
-SHOULD_UPDATE_TEMPLATE = "should_update_template"
 USER_WATCH_ISSUE_LIST = "user_watch_issue_list"
 
 
 redis_op = iii_redis.redis_op
+
+
+# Template cache
+update_template_cache_all = iii_redis.update_template_cache_all
+should_update_template_cache = iii_redis.should_update_template_cache
+delete_template_cache = iii_redis.delete_template_cache
+update_template_cache = iii_redis.update_template_cache
+get_template_caches_all = iii_redis.get_template_caches_all
+count_template_number = iii_redis.count_template_number
+
 
 # Server Alive
 """
@@ -133,43 +141,4 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
     return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))
 
 
-# Template cache
-def update_template_cache_all(data: dict) -> None:
-    logger.logger.info(f"Before data {redis_op.dict_get_all(TEMPLATE_CACHE)}")
-    delete_template_cache()
-    if data:
-        redis_op.dict_set_all(TEMPLATE_CACHE, data)
-        redis_op.bool_set(SHOULD_UPDATE_TEMPLATE, False)
 
-
-def should_update_template_cache() -> bool:
-    """
-    Handy function to check if template cache should be updated.
-
-    :return: Redis value of template cache update flag.
-    """
-    return redis_op.bool_get(SHOULD_UPDATE_TEMPLATE)
-
-
-def delete_template_cache() -> None:
-    """
-    Delete all template cache.
-
-    :return: None
-    """
-    redis_op.dict_delete_all(TEMPLATE_CACHE)
-    redis_op.bool_set(SHOULD_UPDATE_TEMPLATE, True)
-
-
-def update_template_cache(id, dict_val):
-    redis_op.dict_set_certain(TEMPLATE_CACHE, id, json.dumps(dict_val, default=str))
-
-
-def get_template_caches_all():
-    redis_data: dict[str, str] = redis_op.dict_get_all(TEMPLATE_CACHE)
-    out: list[dict[str, Any]] = [{_: json.loads(redis_data[_])} for _ in redis_data]
-    return out
-
-
-def count_template_number():
-    return redis_op.dict_len(TEMPLATE_CACHE)
