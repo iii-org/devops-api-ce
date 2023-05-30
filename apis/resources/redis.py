@@ -1,132 +1,28 @@
 import json
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
+from devopsapi_module import redis as iii_redis
 
-import redis
 
-import config
 from resources import logger
-import ast
 
 ISSUE_FAMILIES_KEY = "issue_families"
 PROJECT_ISSUE_CALCULATE_KEY = "project_issue_calculation"
 SERVER_ALIVE_KEY = "system_all_alive"
-TEMPLATE_CACHE = "template_list_cache"
-SHOULD_UPDATE_TEMPLATE = "should_update_template"
-USER_WATCH_ISSUE_LIST = 'user_watch_issue_list'
+USER_WATCH_ISSUE_LIST = "user_watch_issue_list"
 
 
-class RedisOperator:
-    def __init__(self):
-        self.redis_base_url = config.get("REDIS_BASE_URL")
-        # prod
-        self.pool = redis.ConnectionPool(
-            host=self.redis_base_url.split(":")[0],
-            port=int(self.redis_base_url.split(":")[1]),
-            decode_responses=True,
-        )
-        """
-        # local
-        self.pool = redis.ConnectionPool(
-            host='10.20.0.96', 
-            port='31852',
-            decode_responses=True
-        )
-        """
-        self.r = redis.Redis(connection_pool=self.pool)
-
-    #####################
-    # String type
-    #####################
-    def str_get(self, key):
-        return self.r.get(key)
-
-    def str_set(self, key, value):
-        return self.r.set(key, value)
-
-    def str_delete(self, key):
-        self.r.delete(key)
-
-    #####################
-    # Boolean type
-    #####################
-    def bool_get(self, key: str) -> bool:
-        """
-        Get a boolean value from redis. Redis stores boolean into strings,
-        so this function will convert strings below to ``True``.
-
-            - "1"
-            - "true"
-            - "yes"
-
-        Other values will be converted to ``False``.
-
-        :param key: The key to get
-        :return: The result from redis server
-        """
-        value: Optional[str] = self.r.get(key)
-        if value:  # if value is not None or not empty string
-            if value.lower() in ("1", "true", "yes"):
-                return True
-        return False
-
-    def bool_set(self, key: str, value: bool) -> bool:
-        """
-        Set a boolean value to redis.
-
-        :param key: The key to set
-        :param value: The boolean value to set
-        :return: True if set successfully, False if not
-        """
-        return self.r.set(key, str(value).lower())
-
-    def bool_delete(self, key: str) -> bool:
-        """
-        Delete a key from redis.
-
-        :param key: The key to delete
-        :return: True if the key was deleted, False if the key did not exist
-        """
-        result: int = self.r.delete(key)
-        if result == 1:
-            return True
-        else:
-            return False
-
-    #####################
-    # Dictionary type
-    #####################
-    def dict_set_all(self, key, value):
-        return self.r.hset(key, mapping=value)
-
-    def dict_set_certain(self, key, sub_key, value):
-        return self.r.hset(key, sub_key, value)
-
-    def dict_calculate_certain(self, key, sub_key, num=1):
-        return self.r.hincrby(key, sub_key, amount=num)
-
-    def dict_get_all(self, key):
-        return self.r.hgetall(key)
-
-    def dict_get_certain(self, key, sub_key):
-        return self.r.hget(key, sub_key)
-
-    def dict_delete_certain(self, key, sub_key):
-        return self.r.hdel(key, sub_key)
-
-    def dict_delete_all(self, key):
-        value = self.r.hgetall(key)
-        self.r.delete(key)
-        return value
-
-    def list_keys(self, pattern):
-        return [key for key in self.r.scan_iter(pattern)]
-
-    def dict_len(self, key):
-        return self.r.hlen(key)
+redis_op = iii_redis.redis_op
 
 
-redis_op = RedisOperator()
+# Template cache
+update_template_cache_all = iii_redis.update_template_cache_all
+should_update_template_cache = iii_redis.should_update_template_cache
+delete_template_cache = iii_redis.delete_template_cache
+update_template_cache = iii_redis.update_template_cache
+get_template_caches_all = iii_redis.get_template_caches_all
+count_template_number = iii_redis.count_template_number
+
 
 # Server Alive
 """
@@ -144,19 +40,19 @@ def update_server_alive(alive):
 
 
 # Issue watch list by user Cache
-def get_user_issue_watcher_list()-> list[int] or None:
+def get_user_issue_watcher_list() -> list[int] or None:
     user_watcher_list = redis_op.str_get(USER_WATCH_ISSUE_LIST)
     if user_watcher_list is not None:
         out = json.loads(user_watcher_list)
         return out
     else:
         set_user_issue_watcher_list({})
-        return  {}
+        return {}
 
 
 def set_user_issue_watcher_list(issue_list: dict) -> None:
     return redis_op.str_set(USER_WATCH_ISSUE_LIST, json.dumps(issue_list))
-    
+
 
 # Issue Family Cache
 def get_all_issue_relations():
@@ -245,43 +141,4 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
     return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))
 
 
-# Template cache
-def update_template_cache_all(data: dict) -> None:
-    logger.logger.info(f"Before data {redis_op.dict_get_all(TEMPLATE_CACHE)}")
-    delete_template_cache()
-    if data:
-        redis_op.dict_set_all(TEMPLATE_CACHE, data)
-        redis_op.bool_set(SHOULD_UPDATE_TEMPLATE, False)
 
-
-def should_update_template_cache() -> bool:
-    """
-    Handy function to check if template cache should be updated.
-
-    :return: Redis value of template cache update flag.
-    """
-    return redis_op.bool_get(SHOULD_UPDATE_TEMPLATE)
-
-
-def delete_template_cache() -> None:
-    """
-    Delete all template cache.
-
-    :return: None
-    """
-    redis_op.dict_delete_all(TEMPLATE_CACHE)
-    redis_op.bool_set(SHOULD_UPDATE_TEMPLATE, True)
-
-
-def update_template_cache(id, dict_val):
-    redis_op.dict_set_certain(TEMPLATE_CACHE, id, json.dumps(dict_val, default=str))
-
-
-def get_template_caches_all():
-    redis_data: dict[str, str] = redis_op.dict_get_all(TEMPLATE_CACHE)
-    out: list[dict[str, Any]] = [{_: json.loads(redis_data[_])} for _ in redis_data]
-    return out
-
-
-def count_template_number():
-    return redis_op.dict_len(TEMPLATE_CACHE)

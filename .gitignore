@@ -15,3 +15,4 @@ devops-data
 apis/sync.ffs_db
 Pipfile
 Pipfile.lock
+env
