@@ -327,7 +327,7 @@ api.add_resource(
     gitlab.SyncGitCommitIssueRelationByPjName,
     "/project/issues_commit_by_name",
 )
-api.add_resource(pipeline.PipelineFile, "/project/<string:project_name>/pipeline_file")
+# api.add_resource(pipeline.PipelineFile, "/project/<string:project_name>/pipeline_file")
 
 
 # Project son relation
