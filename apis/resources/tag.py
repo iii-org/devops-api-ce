@@ -6,6 +6,7 @@ import model
 import util as util
 from model import db
 from resources import role
+from typing import Union, Any
 
 error_tag_name_is_exists = "Tag Name was Created"
 
@@ -110,3 +111,48 @@ def get_user_project_ids(user_id):
     for project in projects:
         output.append(project.project_id)
     return output
+
+
+def move_tag(tag_id: int, to_tag_id: Union[int, None]) -> None:
+    if to_tag_id is None:
+        return move_tag_to_end(tag_id)
+    move_tag_to_certain_tag_before(tag_id, to_tag_id)
+
+
+def move_tag_to_end(tag_id: int) -> None:
+    # Update the 'next_tag_id' value of tag that come before tag_id to the 'next_tag_id' value of tag_id.
+    tag_object = model.Tag.query.get(tag_id)
+    pj_id = tag_object.project_id
+    tag_next_tag, tag_before_tag = tag_object.next_tag, tag_object.before_tag
+    if tag_before_tag is not None:  # tag is not the head.
+        tag_before_tag.next_tag = tag_next_tag
+
+    # Set tag to the end
+    end_tag_object = model.Tag.query.filter_by(project_id=pj_id, next_tag_id=None).first()
+    if tag_object.id == end_tag_object.id:  # not moving, do not need to change
+        return
+
+    end_tag_object.next_tag = tag_object
+    tag_object.next_tag = None
+    db.session.commit()
+
+
+def move_tag_to_certain_tag_before(tag_id: int, to_tag_id: int) -> None:
+    # Update the 'next_tag_id' value of tag that come before tag_id to the 'next_tag_id' value of tag_id.
+    tag_object = model.Tag.query.get(tag_id)
+    tag_next_tag, tag_before_tag = tag_object.next_tag, tag_object.before_tag
+
+    if tag_next_tag is not None and tag_next_tag.id == to_tag_id:  # not moving, do not need to change
+        return
+
+    if tag_before_tag is not None:  # tag is not the head.
+        tag_before_tag.next_tag = tag_next_tag
+
+    # Insert tag order into between to_tag and to_tag's before tag.
+    to_tag_object = model.Tag.query.get(to_tag_id)
+    to_tag_before_tag = to_tag_object.before_tag
+    if to_tag_before_tag is not None:  # to_tag is not the head.
+        to_tag_before_tag.next_tag = tag_object
+
+    tag_object.next_tag = to_tag_object
+    db.session.commit()
