@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import subprocess
 from dotenv import load_dotenv
+import urllib.parse
 
 FIXED = {
     # API versions
@@ -15,6 +16,11 @@ FIXED = {
     "ADMIN_GROUP": "sys-admin",
 }
 
+def handle_db_url():
+    '''
+    Encoding specific characters in the SQLALCHEMY_PASSWORD
+    '''
+    FIXED["SQLALCHEMY_DATABASE_URI"] = f'postgresql://{os.getenv("SQLALCHEMY_ACCOUNT")}:{urllib.parse.quote(os.getenv("SQLALCHEMY_PASSWORD"))}@{os.getenv("SQLALCHEMY_HOST")}/{os.getenv("SQLALCHEMY_DATABASE")}'
 
 def get_current_branch():
     command = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
@@ -30,7 +36,9 @@ def insert_env_file_in_env():
         current_branch = get_current_branch()
         env_files_folder = env_files_folder / f"{current_branch}.env"
         load_dotenv(env_files_folder)
-
+        
+        handle_db_url()
+        
 
 def get(key):
     return os.getenv(key) or FIXED.get(key)
