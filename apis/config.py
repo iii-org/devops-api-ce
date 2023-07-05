@@ -16,6 +16,9 @@ FIXED = {
     "ADMIN_GROUP": "sys-admin",
 }
 
+# Define the base folder of the project
+BASE_FOLDER: Path = Path(__file__).parent.parent
+
 def handle_db_url():
     '''
     Encoding specific characters in the SQLALCHEMY_PASSWORD
