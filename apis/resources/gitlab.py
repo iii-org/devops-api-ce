@@ -1010,7 +1010,7 @@ class GitLab(object):
         ret = {"status": {"total": total, "success": success}}
         if with_commit_msg:
             commit_message = jobs[0].get("commit", {}).get("title", "") if jobs else ""
-            ret.update({"commit_message": commit_message})
+            ret.update({"commit_message": commit_message, "commit_branch": branch})
         return ret
 
     def create_pipeline(self, repo_id: int, branch: str):
