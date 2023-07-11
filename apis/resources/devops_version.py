@@ -257,7 +257,7 @@ def get_deployment_info():
     row = model.NexusVersion.query.one()
     return {
         "version_name": row.deploy_version,
-        "deployment_name": config.get("DEPLOYMENT_NAME"),
+        "deployment_name": config.get("DEPLOYER_NODE_IP"),
         "deployment_uuid": row.deployment_uuid,
     }
 
