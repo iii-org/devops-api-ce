@@ -1,82 +1,70 @@
 include:
-  - project: 'iiidevops-templates/ci-template'
-    file: 'ci/template.gitlab-ci.yml'
-
+- project: iiidevops-templates/ci-template
+  file: ci/template.gitlab-ci.yml
 stages:
-  - initial
-  - scan
-  - build
-  - deploy
-  - test
-
+- initial
+- scan
+- build
+- deploy
+- test
 Test--SonarQube source code scan:
   variables:
     iiidevops: sonarqube
     CHART_TYPE: normal
   only:
-    - master
-
+  - master
 Test--Checkmarx source code scan:
   variables:
     iiidevops: checkmarx
   only:
-    - skip
-
+  - skip
 Build image:
   variables:
     iiidevops: deployed-environments
   only:
-    - skip
-
+  - master
 Build--Scan docker image:
   variables:
     iiidevops: deployed-environments
   only:
-    - skip
-
+  - master
 Deploy--Set environment and wait deployment:
   variables:
     iiidevops: deployed-environments
   only:
-    - skip
-
+  - master
 Deploy--Web:
   variables:
     iiidevops: deployed-environments
     CHART_WEB_PORT: 10009
     CHART_PROXY_BODY_SIZE: 1m
   only:
-    - skip
-
+  - master
 Test--Anchore SBOM:
   variables:
     iiidevops: anchore
   only:
-   - skip
-
+  - skip
 Test--ZAP:
   variables:
     iiidevops: zap
     CHART_WEB_PORT: 10009
   only:
-   - skip
-
+  - skip
 Test--WebInspect:
   variables:
     iiidevops: webinspect
   only:
-    - skip
-
+  - skip
 Test--Postman:
   variables:
     iiidevops: postman
     CHART_WEB_PORT: 10009
   only:
-   - skip
-
+  - skip
 Test--Sideex:
   variables:
     iiidevops: sideex
     CHART_WEB_PORT: 10009
   only:
-   - skip
+  - skip
