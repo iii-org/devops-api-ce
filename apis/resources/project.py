@@ -173,7 +173,7 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
     parent_son = args.get("parent_son", False)
     user_name = model.User.query.get(user_id).login
 
-    rows, counts = get_project_rows_by_user(user_id, disable, args=args)
+    rows, counts, stared_ids = get_project_rows_by_user(user_id, disable, args=args)
     ret = []
     for row in rows:
         if row not in db.session:
@@ -189,6 +189,37 @@ def get_project_list(user_id: int, role: str = "simple", args: dict = {}, disabl
     if limit is not None and offset is not None:
         page_dict = util.get_pagination(counts, limit, offset)
         return {"project_list": ret, "page": page_dict}
+
+    return ret
+
+
+def get_project_simple_list(user_id: int, args: dict = {}, disable: bool = None):
+    """
+    List all project when role is equal to simple, so avoid do something if role == simple.
+    """
+    limit = args.get("limit")
+    offset = args.get("offset")
+    # extra_data = args.get("test_result", "false") == "true"
+    # pj_members_count = args.get("pj_members_count", "false") == "true"
+    # parent_son = args.get("parent_son", False)
+    # user_name = model.User.query.get(user_id).login
+
+    rows, counts, stared_ids = get_project_rows_by_user(user_id, disable, args=args)
+    ret = []
+    for row in rows:
+        if row not in db.session:
+            row = db.session.merge(row)
+        ret.append({
+            "id": row.id,
+            "name": row.name,
+            "display": row.display,
+            "description": row.description,
+            "starred": (row.id in stared_ids)
+        })
+    logging.info("Successful get all project simple")
+    if limit is not None and offset is not None:
+        page_dict = util.get_pagination(counts, limit, offset)
+        return {"project_simple_list": ret, "page": page_dict}
 
     return ret
 
@@ -291,9 +322,9 @@ def get_project_rows_by_user(user_id, disable, args={}):
     all_projects.sort(key=cmp_to_key(sort_func))
 
     if offset is None or limit is None:
-        return all_projects, total_count
+        return all_projects, total_count, stared_project_ids
 
-    return all_projects[offset : offset + limit], total_count
+    return all_projects[offset : offset + limit], total_count, stared_project_ids
 
 
 # 新增redmine & gitlab的project並將db相關table新增資訊

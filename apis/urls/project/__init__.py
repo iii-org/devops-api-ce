@@ -91,6 +91,10 @@ def project_url(api, add_resource):
     api.add_resource(view.ListMyProjectsV2, "/v2/project/list")
     add_resource(view.ListMyProjectsV2, "public")
 
+    # List simple project
+    api.add_resource(view.ListSimpleProjectsV2, "/v2/project/simple/list")
+    add_resource(view.ListSimpleProjectsV2, "public")
+
     api.add_resource(view.CalculateProjectIssues, "/project/list/caculate")
     api.add_resource(view.CalculateProjectIssuesV2, "/v2/project/list/caculate")
     add_resource(view.CalculateProjectIssuesV2, "public")

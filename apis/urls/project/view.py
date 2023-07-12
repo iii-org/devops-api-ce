@@ -600,6 +600,16 @@ class ListMyProjects(Resource):
                 {"project_list": project.get_project_list(get_jwt_identity()["user_id"], "pm", args, disabled)}
             )
 
+@doc(tags=["Project"], description="List simple projects")
+# @use_kwargs(router_model.ListMyProjectsSchema, location="query")
+# @marshal_with(router_model.ListSimpleProjectsResponse)
+class ListSimpleProjectsV2(MethodResource):
+    @jwt_required()
+    def get(self):
+        args = {"is_lock": False}
+        return util.success(project.get_project_simple_list(get_jwt_identity()["user_id"], args, disable=False))
+
+
 
 @doc(tags=["Project"], description="List projects calculated issues count")
 @use_kwargs(router_model.CalculateProjectIssuesSchema, location="query")
