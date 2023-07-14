@@ -199,23 +199,37 @@ def get_project_simple_list(user_id: int, args: dict = {}, disable: bool = None)
     """
     limit = args.get("limit")
     offset = args.get("offset")
-    # extra_data = args.get("test_result", "false") == "true"
-    # pj_members_count = args.get("pj_members_count", "false") == "true"
-    # parent_son = args.get("parent_son", False)
-    # user_name = model.User.query.get(user_id).login
 
     rows, counts, stared_ids = get_project_rows_by_user(user_id, disable, args=args)
     ret = []
     for row in rows:
         if row not in db.session:
             row = db.session.merge(row)
-        ret.append({
-            "id": row.id,
-            "name": row.name,
-            "display": row.display,
-            "description": row.description,
-            "starred": (row.id in stared_ids)
-        })
+        row_json = util.row_to_dict(row)
+        row_json["git_url"] = row_json.pop("http_url")
+        row_json["starred"] = (row.id in stared_ids)
+        row_json["repository_ids"] = []
+        row_json["redmine_url"] = ""
+        row_json["harbor_url"] = ""
+        row_json["owner_name"] = ""
+        row_json["department"] = ""
+        # 取得gitlab & redmine project_id
+        relation = nx_get_project_plugin_relation(nexus_project_id=row.id)
+        if relation:
+            row_json["repository_ids"] = [relation.git_repository_id]
+            row_json["redmine_url"] = (
+                f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/'
+                f"{relation.plan_project_id}"
+            )
+            row_json["harbor_url"] = (
+                f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/'
+                f"{relation.harbor_project_id}/repositories"
+            )
+        owner = user.NexusUser().set_user_id(row.owner_id)
+        if owner:
+            row_json["owner_name"] = owner.name
+            row_json["department"] = owner.department
+        ret.append(row_json)
     logging.info("Successful get all project simple")
     if limit is not None and offset is not None:
         page_dict = util.get_pagination(counts, limit, offset)
