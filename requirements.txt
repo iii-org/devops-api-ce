@@ -35,4 +35,4 @@ Markdown==3.4.3
 celery==5.2.7
 pandas==1.4.2
 python-dotenv==0.20.0
-https://github.com/iii-org/devops-system-module/archive/refs/heads/master.zip
+http://10.20.0.74:32080/root/devops-api-module/-/archive/master/devops-api-module-master.zip
