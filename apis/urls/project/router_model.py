@@ -323,6 +323,7 @@ class IssueFilterByProjectPostAndPutSchema(Schema):
     status_id = fields.Str(doc="status_id", example="1", allow_none=True)
     tags = fields.Str(doc="tags", example="1,2,3", allow_none=True)
     tracker_id = fields.Str(doc="tracker_id", example="1", allow_none=True)
+    expired_days = fields.Int(doc="expired_days", example=1, allow_none=True)
 
 
 #################################### Response ####################################

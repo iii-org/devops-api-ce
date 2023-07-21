@@ -760,6 +760,7 @@ class CustomIssueFilter(db.Model):
         custom_filter_keys = sorted(list(custom_filter.keys()))
         expected_keys = [
             "assigned_to_id",
+            "expired_days",
             "fixed_version_id",
             "focus_tab",
             "group_by",
