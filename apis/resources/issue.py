@@ -1542,6 +1542,9 @@ def get_custom_filters_by_args(args=None, project_id=None, user_id=None, childre
         if args.get("only_superproject_issues", False):
             default_filters["subproject_id"] = "!*"
 
+        if args.get("is_expired", False):
+            default_filters["due_date"] = f'<={str(date.today() - timedelta(days=args.get("expired_days")))}'
+
     return default_filters
 
 

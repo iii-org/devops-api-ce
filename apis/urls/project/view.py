@@ -217,6 +217,8 @@ class IssueByProject(Resource):
         parser.add_argument("due_date_end", type=str, location="args")
         parser.add_argument("with_point", type=bool, location="args")
         parser.add_argument("tags", type=str, location="args")
+        parser.add_argument("is_expired", type=bool, location="args")
+        parser.add_argument("expired_days", type=int, default=1, location="args")
         args = parser.parse_args()
         args["project_id"] = project_id
         if args.get("search") is not None and len(args["search"]) < 2:

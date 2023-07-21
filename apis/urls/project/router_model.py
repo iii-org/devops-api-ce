@@ -94,6 +94,8 @@ class IssueByProjectSchema(CommonIssueSchema):
     due_date_end = fields.Str(doc="due_date_end", example="1970-01-01")
     with_point = fields.Str(doc="with_point", example=True)
     tags = fields.Str(doc="tags", example="1,2,3")
+    is_expired = fields.Bool(doc="is_expired", example=True)
+    expired_days = fields.Int(doc="expired_days", example=1, load_default=1)
 
 
 class IssuesProgressByProjectSchema(Schema):
