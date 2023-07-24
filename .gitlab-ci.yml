@@ -22,24 +22,24 @@ Build image:
   variables:
     iiidevops: deployed-environments
   only:
-  - skip
+  - master
 Build--Scan docker image:
   variables:
     iiidevops: deployed-environments
   only:
-  - skip
+  - master
 Deploy--Set environment and wait deployment:
   variables:
     iiidevops: deployed-environments
   only:
-  - skip
+  - master
 Deploy--Web:
   variables:
     iiidevops: deployed-environments
     CHART_WEB_PORT: 10009
     CHART_PROXY_BODY_SIZE: 1m
   only:
-  - skip
+  - master
 Test--Anchore SBOM:
   variables:
     iiidevops: anchore
