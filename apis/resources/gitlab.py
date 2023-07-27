@@ -597,7 +597,7 @@ class GitLab(object):
             },
         ).json()
 
-    def create_commit(self, project_id, branch, commit_message, actions=[]):
+    def gl_create_commit(self, project_id, branch, commit_message, actions=[]):
         return self.__api_post(
             f"/projects/{project_id}/repository/commits",
             data={"branch": branch, "commit_message": commit_message, "actions": actions},
@@ -1013,11 +1013,20 @@ class GitLab(object):
             ret.update({"commit_message": commit_message, "commit_branch": branch})
         return ret
 
+    def rerun_branch_latest_pipeline(self, repo_id: int, branch: str):
+        return self.gl_create_pipeline(repo_id, branch)
+
+    def create_commit(self, repo_id: int, pipeline_id: int):
+        pipeline_info = self.gl_get_single_pipeline(repo_id, pipeline_id)
+        sha, branch = pipeline_info["sha"], pipeline_info["ref"]
+        commit_msg = self.single_commit(repo_id, sha)["title"]
+        return self.gl_create_commit(repo_id, branch, commit_msg)
+
     def create_pipeline(self, repo_id: int, branch: str):
         latest_pipeline_info = self.gl_list_pipelines(repo_id=repo_id, limit=1, start=0, branch=branch)[0]
         sha = latest_pipeline_info["sha"]
         commit_msg = self.single_commit(repo_id, sha)["title"]
-        return self.create_commit(repo_id, branch, commit_msg)
+        return self.gl_create_commit(repo_id, branch, commit_msg)
 
     ## variable
     def gl_get_all_global_variable(self):
@@ -1071,6 +1080,16 @@ class GitLab(object):
         data |= attribute
         data.update({"key": key, "value": value})
         return self.gl_create_pj_variable(repo_id, data)
+
+
+def rerun_pipeline(repo_id: int, pipeline_id: int, branch: str):
+    latest_commit_info = gitlab.gl_get_commits(repo_id, branch, per_page=1)
+    commit_msg = latest_commit_info[0].get("title")
+    pattern = r".*\(store\)$"
+    if re.findall(pattern, commit_msg):
+        gitlab.create_commit(repo_id, pipeline_id)
+    else:
+        gitlab.rerun_branch_latest_pipeline(repo_id, branch)
 
 
 def single_file(

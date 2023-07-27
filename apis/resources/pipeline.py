@@ -16,7 +16,7 @@ from flask_socketio import emit, disconnect, Namespace
 from model import db  #  remove ProjectPluginRelation ,PipelineLogsCache, Project
 from nexus import nx_get_project_plugin_relation
 from resources import role
-from .gitlab import GitLab
+from .gitlab import GitLab, rerun_pipeline
 from typing import Union, Any
 from resources.gitlab import commit_id_to_url, get_nexus_project_id
 
@@ -33,11 +33,11 @@ def pipeline_exec_action(git_repository_id: int, args: dict[str, Union[int, str]
     """
     action, pipeline_id, branch = args["action"], args["pipelines_exec_run"], args.get("branch")
     if action == "rerun":
-        return gitlab.gl_rerun_pipeline_job(git_repository_id, pipeline_id)
+        return rerun_pipeline(git_repository_id, pipeline_id, branch)
     elif action == "stop":
         return gitlab.gl_stop_pipeline_job(git_repository_id, pipeline_id)
-    elif action == "create":
-        return gitlab.create_pipeline(git_repository_id, branch)
+    # elif action == "create":
+    #     return gitlab.create_pipeline(git_repository_id, branch)
 
 
 def pipeline_exec_list(git_repository_id: int, limit: int = 10, start: int = 0) -> dict[str, Any]:
