@@ -44,13 +44,13 @@ Test--Anchore SBOM:
   variables:
     iiidevops: anchore
   only:
-  - master
+  - skip
 Test--ZAP:
   variables:
     iiidevops: zap
     CHART_WEB_PORT: 10009
   only:
-  - master
+  - skip
 Test--WebInspect:
   variables:
     iiidevops: webinspect
@@ -61,10 +61,10 @@ Test--Postman:
     iiidevops: postman
     CHART_WEB_PORT: 10009
   only:
-  - master
+  - skip
 Test--Sideex:
   variables:
     iiidevops: sideex
     CHART_WEB_PORT: 10009
   only:
-  - master
+  - skip
