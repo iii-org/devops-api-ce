@@ -32,19 +32,19 @@ Deploy--Set environment and wait deployment:
   variables:
     iiidevops: deploy-web
   only:
-  - master
+  - skip
 Deploy--Web:
   variables:
     iiidevops: deploy-web
     CHART_WEB_PORT: 10009
     CHART_PROXY_BODY_SIZE: 1m
   only:
-  - master
+  - skip
 Test--Anchore SBOM:
   variables:
     iiidevops: anchore
   only:
-  - skip
+  - master
 Test--ZAP:
   variables:
     iiidevops: zap
