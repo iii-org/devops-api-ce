@@ -20,22 +20,22 @@ Test--Checkmarx source code scan:
   - master
 Build image:
   variables:
-    iiidevops: deployed-environments
+    iiidevops: build-image
   only:
   - master
 Build--Scan docker image:
   variables:
-    iiidevops: deployed-environments
+    iiidevops: build-image
   only:
   - master
 Deploy--Set environment and wait deployment:
   variables:
-    iiidevops: deployed-environments
+    iiidevops: deploy-web
   only:
   - master
 Deploy--Web:
   variables:
-    iiidevops: deployed-environments
+    iiidevops: deploy-web
     CHART_WEB_PORT: 10009
     CHART_PROXY_BODY_SIZE: 1m
   only:
