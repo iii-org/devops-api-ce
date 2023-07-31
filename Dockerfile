@@ -1,5 +1,5 @@
 FROM python:3.9.16-slim
-RUN apt-get update && apt-get install -y --no-install-recommends git curl && apt clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends git && apt clean && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
