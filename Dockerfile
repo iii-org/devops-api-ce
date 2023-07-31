@@ -1,4 +1,4 @@
-FROM python:3.9.14-slim
+FROM python:3.9.16-slim
 RUN apt-get update && apt-get install -y --no-install-recommends git curl && apt clean && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
