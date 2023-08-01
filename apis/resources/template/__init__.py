@@ -467,6 +467,7 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
                 out[branch.name] = {
                     "commit_message": branch.commit["message"],
                     "commit_time": branch.commit["created_at"],
+                    "default": branch.name == pj.default_branch
                 }
             soft_key_and_status = {
                 "key": yaml_stage["key"],

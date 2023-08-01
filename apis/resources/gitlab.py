@@ -1446,7 +1446,12 @@ gl_release = GitRelease()
 class GitProjectBranches(Resource):
     @jwt_required()
     def get(self, repository_id):
-        return util.success({"branch_list": gitlab.gl_get_branches(repository_id)})
+        return util.success(
+            {
+                "branch_list": gitlab.gl_get_branches(repository_id),
+                "default_branch": gitlab.gl_get_project(repository_id).get("default_branch")
+            }
+        )
 
     @jwt_required()
     def post(self, repository_id):
@@ -1462,7 +1467,12 @@ class GitProjectBranchesV2(MethodResource):
     @jwt_required()
     @marshal_with(route_model.GitlabGetProjectBranchesRes)
     def get(self, repository_id):
-        return util.success({"branch_list": gitlab.gl_get_branches(repository_id)})
+        return util.success(
+            {
+                "branch_list": gitlab.gl_get_branches(repository_id),
+                "default_branch": gitlab.gl_get_project(repository_id).get("default_branch")
+            }
+        )
 
     @doc(tags=["Gitlab"], description="add branch for the project")
     @jwt_required()
