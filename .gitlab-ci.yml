@@ -24,10 +24,27 @@ Build image:
   only:
   - master
 Build--Scan docker image:
+  stage: build
+  image:
+    name: alpine:3.17
+    entrypoint:
+    - ''
   variables:
     iiidevops: build-image
+  needs:
+  - Build image
+  before_script:
+  - apk add --update curl
+  script:
+  - echo "curl -s -L -X POST "${IIIDEV_URL}/v2/harbor/${CI_PROJECT_NAME}/scan" -F branch=${CI_COMMIT_BRANCH}
+    -F commit_id=${CI_COMMIT_SHORT_SHA}"
+  - 'curl -s -L -X POST "${IIIDEV_URL}/v2/harbor/${CI_PROJECT_NAME}/scan" -F branch=${CI_COMMIT_BRANCH}
+    -F commit_id=${CI_COMMIT_SHORT_SHA}'
   only:
   - master
+  except:
+    variables:
+    - "$CI_COMMIT_MESSAGE =~ /.*\\(store\\)$/"
 Deploy--Set environment and wait deployment:
   variables:
     iiidevops: deploy-web
