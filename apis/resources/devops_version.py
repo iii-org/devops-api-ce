@@ -32,7 +32,7 @@ def login():
     dp_uuid = model.NexusVersion.query.one().deployment_uuid
     res = __api_post(
         "/login",
-        params={"uuid": dp_uuid, "name": config.get("DEPLOYMENT_NAME") or config.get("DEPLOYER_NODE_IP")},
+        params={"uuid": dp_uuid, "name": config.get("DEPLOYMENT_NAME") or config.get("DEPLOYER_NODE_IP"), "type": "lite"},
         with_token=False,
     )
     version_center_token = res.json().get("data", {}).get("access_token", None)
@@ -40,7 +40,7 @@ def login():
 
 def __api_request(method, path, headers=None, params=None, data=None, with_token=True, retry=False):
     if headers is None:
-        headers = {}
+        headers = {"Content-Type": "application/json"}
     if params is None:
         params = {}
     if with_token:

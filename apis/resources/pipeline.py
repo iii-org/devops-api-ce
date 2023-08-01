@@ -234,7 +234,7 @@ class PipelineConfig(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("pipelines_exec_run", type=int, required=True, location="args")
         args = parser.parse_args()
-        return get_pipeline_job_status(repository_id, args["pipelines_exec_run"])
+        return util.success(get_pipeline_job_status(repository_id, args["pipelines_exec_run"]))
 
 
 # ----------------------------------------------------------------------------------------------------------------------------
