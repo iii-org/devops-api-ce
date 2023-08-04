@@ -45,6 +45,32 @@ Build--Scan docker image:
   except:
     variables:
     - "$CI_COMMIT_MESSAGE =~ /.*\\(store\\)$/"
+Build--Copy Image:
+  stage: build
+  image:
+    name: iiiorg/iiidevops-cli:0.0.4
+  allow_failure: true
+  variables:
+    iiidevops: deployed-environments
+  needs:
+  - Build image
+  script:
+  - 'RAWDATA="{}" RAWDATA=$(echo "${RAWDATA}" | jq --arg username "${BOT_USERNAME}"
+    --arg password "${BOT_PASSWORD}" ''. + {username: $username, password: $password}'')
+    '
+  - RESPONSE="$(curl -sL --fail -X POST ${IIIDEV_URL}/user/login -H "Content-Type:application/json"
+    -d "${RAWDATA}")"
+  - TOKEN="$(echo "${RESPONSE}" | jq -r '.data.token')"
+  - if [ -z "${TOKEN}" ]; then echo "Login failed"; exit 1; fi
+  - echo "${CI_COMMIT_BRANCH} ${CI_PROJECT_NAME} ${CI_COMMIT_SHORT_SHA} {IIIDEV_URL}"
+  - curl -L -X POST ${IIIDEV_URL}/harbor/handle_image -H "Authorization:Bearer $TOKEN"
+    -F project_name=${CI_PROJECT_NAME} -F from_repo_name=${CI_COMMIT_BRANCH} -F from_tag=${CI_COMMIT_SHORT_SHA}
+    -F dest_repo_name=${CI_PROJECT_NAME} -F dest_tag=${CI_COMMIT_BRANCH}
+  only:
+  - master
+  except:
+    variables:
+    - $CI_COMMIT_MESSAGE =~ /.*\(store\)$/
 Deploy--Set environment and wait deployment:
   variables:
     iiidevops: deploy-web

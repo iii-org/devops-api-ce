@@ -12,7 +12,7 @@ FIXED = {
     "DEBUG": False,
     "USE_RELOADER": False,
     "DOCUMENT_LEVEL": "public",
-    "VERSION_CENTER_BASE_URL": "https://version-center.iiidevops.org/",
+    "VERSION_CENTER_BASE_URL": "https://version-center.iiidevops.org",
     "ADMIN_GROUP": "sys-admin",
 }
 
