@@ -13,16 +13,19 @@ Test--SonarQube source code scan:
     CHART_TYPE: normal
   only:
   - master
+  - develop
 Test--Checkmarx source code scan:
   variables:
     iiidevops: checkmarx
   only:
   - master
+  - develop
 Build image:
   variables:
     iiidevops: build-image
   only:
   - master
+  - develop
 Build--Scan docker image:
   stage: build
   image:
@@ -36,15 +39,16 @@ Build--Scan docker image:
   before_script:
   - apk add --update curl
   script:
-  - echo "curl -s -L -X POST "${IIIDEV_URL}/v2/harbor/${CI_PROJECT_NAME}/scan" -F branch=${CI_COMMIT_BRANCH}
-    -F commit_id=${CI_COMMIT_SHORT_SHA}"
-  - 'curl -s -L -X POST "${IIIDEV_URL}/v2/harbor/${CI_PROJECT_NAME}/scan" -F branch=${CI_COMMIT_BRANCH}
-    -F commit_id=${CI_COMMIT_SHORT_SHA}'
+  - echo "curl -s -L -X POST "${IIIDEV_URL}/v2/harbor/${CI_PROJECT_NAME}/scan" -F
+    branch=${CI_COMMIT_BRANCH} -F commit_id=${CI_COMMIT_SHORT_SHA}"
+  - curl -s -L -X POST "${IIIDEV_URL}/v2/harbor/${CI_PROJECT_NAME}/scan" -F branch=${CI_COMMIT_BRANCH}
+    -F commit_id=${CI_COMMIT_SHORT_SHA}
   only:
   - master
+  - develop
   except:
     variables:
-    - "$CI_COMMIT_MESSAGE =~ /.*\\(store\\)$/"
+    - $CI_COMMIT_MESSAGE =~ /.*\(store\)$/
 Build--Copy Image:
   stage: build
   image:
@@ -56,8 +60,7 @@ Build--Copy Image:
   - Build image
   script:
   - 'RAWDATA="{}" RAWDATA=$(echo "${RAWDATA}" | jq --arg username "${BOT_USERNAME}"
-    --arg password "${BOT_PASSWORD}" ''. + {username: $username, password: $password}'')
-    '
+    --arg password "${BOT_PASSWORD}" ''. + {username: $username, password: $password}'') '
   - RESPONSE="$(curl -sL --fail -X POST ${IIIDEV_URL}/user/login -H "Content-Type:application/json"
     -d "${RAWDATA}")"
   - TOKEN="$(echo "${RESPONSE}" | jq -r '.data.token')"
@@ -68,6 +71,7 @@ Build--Copy Image:
     -F dest_repo_name=${CI_PROJECT_NAME} -F dest_tag=${CI_COMMIT_BRANCH}
   only:
   - master
+  - develop
   except:
     variables:
     - $CI_COMMIT_MESSAGE =~ /.*\(store\)$/
@@ -88,6 +92,7 @@ Test--Anchore SBOM:
     iiidevops: anchore
   only:
   - master
+  - develop
 Test--ZAP:
   variables:
     iiidevops: zap
