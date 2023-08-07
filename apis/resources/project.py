@@ -205,8 +205,36 @@ def get_project_simple_list(user_id: int, args: dict = {}, disable: bool = None)
     for row in rows:
         if row not in db.session:
             row = db.session.merge(row)
-        row_json = NexusProject().set_project_row(row).to_json()
+        row_json = util.row_to_dict(row)
         row_json["starred"] = row.id in stared_ids
+        row_json["repository_ids"] = []
+        row_json["redmine_url"] = ""
+        row_json["harbor_url"] = ""
+        row_json["owner_name"] = ""
+        row_json["department"] = ""
+        # 取得gitlab & redmine project_id
+        relation = nx_get_project_plugin_relation(nexus_project_id=row.id)
+        if relation:
+            if config.get("GITLAB_EXTERNAL_BASE_URL") is not None:
+                row_json["git_url"] = (
+                    f'{config.get("GITLAB_EXTERNAL_BASE_URL")}/{config.get("GITLAB_ADMIN_ACCOUNT") or "root"}/'
+                    f'{row_json["name"]}.git'
+                )
+            else:
+                row_json["git_url"] = row_json.pop("http_url")
+
+            row_json["repository_ids"] = [relation.git_repository_id]
+            row_json["redmine_url"] = (
+                f'{config.get("REDMINE_EXTERNAL_BASE_URL")}/projects/' f"{relation.plan_project_id}"
+            )
+            row_json["harbor_url"] = (
+                f'{config.get("HARBOR_EXTERNAL_BASE_URL")}/harbor/projects/'
+                f"{relation.harbor_project_id}/repositories"
+            )
+        owner = user.NexusUser().set_user_id(row.owner_id)
+        if owner:
+            row_json["owner_name"] = owner.name
+            row_json["department"] = owner.department
         ret.append(row_json)
     logging.info("Successful get all project simple")
     if limit is not None and offset is not None:
