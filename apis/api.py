@@ -642,8 +642,7 @@ def start_prod_extra_funcs():
     """
     try:
         # Register in version center
-        devops_version.login()
-        devops_version.register_in_vc(force_update=True)
+        devops_version.VersionCenter().update_version_in_db_and_vc()
     except Exception as e:
         logger.logger.exception(f"Error message: {str(e)}")
 
