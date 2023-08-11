@@ -7,9 +7,186 @@ import model
 import util
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource
+from requests import Response
+from resources.system import system_git_commit_id
+from resources.logger import logger
+from datetime import datetime
 
 
-version_center_token = None
+class VersionCenter:
+    def __init__(self):
+        """
+        Login to get token every time is in case of token expired.
+        """
+
+        self.__get_iii_verions_info()
+        self.__login()
+
+    def __get_iii_verions_info(self) -> None:
+        nexus_version = model.NexusVersion.query.one()
+        self.dp_uuid, self.dp_version = nexus_version.deployment_uuid, nexus_version.deploy_version
+
+    def __login(self) -> None:
+        """
+        Login will also create a deployment(if not exist) or update the deploymeny info in version center.
+        """
+
+        response: Response = self.post(
+            "/login",
+            params={
+                "uuid": self.dp_uuid,
+                "name": config.get("DEPLOYMENT_NAME") or config.get("DEPLOYER_NODE_IP"),
+                "type": "lite",
+            },
+            with_token=False,
+        )
+
+        self.center_token = response.json().get("data", {}).get("access_token", None)
+
+    def update_version_in_db_and_vc(self) -> Response:
+        """
+        Record current deployment to version center and iii DB.
+
+        Returns:
+            None
+        """
+        logger.info(f"Current deploy_version: {self.dp_version}, deployment_uuid: {self.dp_uuid}.")
+
+        _version = system_git_commit_id().get("git_tag")
+        if self.dp_version != _version:
+            model.NexusVersion.query.filter_by(deployment_uuid=self.dp_uuid).update({"deploy_version": _version})
+            model.db.session.commit()
+            self.dp_version = _version
+            logger.info(f"Update deploy_version to {_version}.")
+
+        return self.post("/report_update", data={"version_name": _version, "uuid": self.dp_uuid})
+
+    def update_iii_host_info_in_vc(self) -> Response:
+        """
+        Update iii host info to version center.
+        """
+        
+        ret = {
+            "update_at": str(datetime.now()),
+            "iiidevops": {
+                "deploy_version": self.dp_version,
+                "deployment_uuid": self.dp_uuid,
+            },
+        }
+        return self.post("/report_info", data={"iiidevops": ret, "uuid": self.dp_uuid})
+
+    def _call_api(
+        self,
+        path: str,
+        method: str,
+        *,
+        headers: dict = None,
+        params: dict = None,
+        data: dict = None,
+        with_token: bool = True,
+        retry: bool = False,
+    ) -> Response:
+        """
+        Call version center API.
+
+        Args:
+            path: The path of API, e.g. /__login
+            method: The method of API, only support GET and POST.
+            headers: The headers of API.
+            params: The params of API.
+            data: The data of API.
+            with_token: If True, add token to headers.
+            retry: If True, retry once when token expire.
+
+        Returns:
+            Response: The response of API.
+        """
+        if headers is None:
+            headers = dict()
+
+        if params is None:
+            params = dict()
+
+        if with_token:
+            headers["Authorization"] = f"Bearer {self.center_token}"
+
+        if path.startswith("/"):
+            path = path[1:]
+
+        if method not in ["GET", "POST"]:
+            raise DevOpsError(500, "Only GET and POST method are supported.")
+
+        url: str = f"{config.get('VERSION_CENTER_BASE_URL')}/{path}"
+        output: Response = util.api_request(method, url, headers, params, data)
+
+        # When token expire
+        if output.status_code == 401 and not retry:
+            self.__login()
+            return self._call_api(method, path, headers=headers, params=params, data=data, with_token=True, retry=True)
+
+        if int(output.status_code / 100) != 2:
+            raise DevOpsError(
+                output.status_code,
+                "Got non-2xx response from Version center.",
+                error=apiError.error_3rd_party_api("Version Center", output),
+            )
+        return output
+
+    def get(
+        self,
+        path: str,
+        *,
+        headers: dict = None,
+        params: dict = None,
+        data: dict = None,
+        with_token: bool = True,
+        retry: bool = False,
+    ) -> Response:
+        """
+        Call version center GET API.
+
+        Args:
+            path: The path of API, e.g. /login
+            headers: The headers of API.
+            params: The params of API.
+            data: The data of API.
+            with_token: If True, add token to headers.
+            retry: If True, retry once when token expire.
+
+        Returns:
+            Response: The response of API.
+        """
+        return self._call_api(
+            path, "GET", headers=headers, params=params, data=data, with_token=with_token, retry=retry
+        )
+
+    def post(
+        self,
+        path: str,
+        *,
+        headers: dict = None,
+        params: dict = None,
+        data: dict = None,
+        with_token: bool = True,
+        retry: bool = False,
+    ) -> Response:
+        """
+        Call version center POST API.
+
+        Args:
+            path: The path of API, e.g. /login
+            headers: The headers of API.
+            params: The params of API.
+            data: The data of API.
+            with_token: If True, add token to headers.
+            retry: If True, retry once when token expire.
+
+        Returns:
+            Response: The response of API.
+        """
+        return self._call_api(
+            path, "POST", headers=headers, params=params, data=data, with_token=with_token, retry=retry
+        )
 
 
 def set_deployment_uuid():
@@ -19,234 +196,6 @@ def set_deployment_uuid():
     model.db.session.commit()
     return my_uuid
 
-
-def __get_token():
-    global version_center_token
-    if version_center_token is None:
-        login()
-    return version_center_token
-
-
-def login():
-    global version_center_token
-    dp_uuid = model.NexusVersion.query.one().deployment_uuid
-    res = __api_post(
-        "/login",
-        params={"uuid": dp_uuid, "name": config.get("DEPLOYMENT_NAME") or config.get("DEPLOYER_NODE_IP"), "type": "lite"},
-        with_token=False,
-    )
-    version_center_token = res.json().get("data", {}).get("access_token", None)
-
-
-def __api_request(method, path, headers=None, params=None, data=None, with_token=True, retry=False):
-    if headers is None:
-        headers = {"Content-Type": "application/json"}
-    if params is None:
-        params = {}
-    if with_token:
-        headers["Authorization"] = f"Bearer {__get_token()}"
-
-    url = f'{config.get("VERSION_CENTER_BASE_URL")}{path}'
-    output = util.api_request(method, url, headers, params, data)
-
-    # Token expire
-    if output.status_code == 401 and not retry:
-        login()
-        return __api_request(method, path, headers, params, data, True, True)
-
-    if int(output.status_code / 100) != 2:
-        raise DevOpsError(
-            output.status_code,
-            "Got non-2xx response from Version center.",
-            error=apiError.error_3rd_party_api("Version Center", output),
-        )
-    return output
-
-
-def __api_post(path, params=None, headers=None, data=None, with_token=True):
-    return __api_request("POST", path, headers=headers, data=data, params=params, with_token=with_token)
-
-
-def register_in_vc(force_update: bool = False) -> None:
-    from resources.system import system_git_commit_id
-
-    nexus_version = model.NexusVersion.query.first()
-    deploy_version, deploy_uuid = nexus_version.deploy_version, nexus_version.deployment_uuid
-    if deploy_version is None or force_update:
-        deploy_version = system_git_commit_id().get("git_tag")
-        nexus_version.deploy_version = deploy_version
-        model.db.session.commit()
-
-    return __api_post("/report_info", data={"iiidevops": {"deploy_version": deploy_version}, "uuid": deploy_uuid})
-
-
-'''
-import uuid
-
-
-
-from sqlalchemy.sql import and_
-
-import config
-import model
-import util
-from resources import role, apiError
-from resources.apiError import DevOpsError
-from resources.logger import logger
-from resources.notification_message import (
-    check_message_exist,
-    create_notification_message,
-    close_notification_message,
-)
-from resources.redis import delete_template_cache
-
-version_center_token = None
-
-
-def __get_token():
-    global version_center_token
-    if version_center_token is None:
-        login()
-    return version_center_token
-
-
-def __api_request(method, path, headers=None, params=None, data=None, with_token=True, retry=False):
-    if headers is None:
-        headers = {}
-    if params is None:
-        params = {}
-    if with_token:
-        headers["Authorization"] = f"Bearer {__get_token()}"
-
-    url = f'{config.get("VERSION_CENTER_BASE_URL")}{path}'
-    output = util.api_request(method, url, headers, params, data)
-
-    # Token expire
-    if output.status_code == 401 and not retry:
-        login()
-        return __api_request(method, path, headers, params, data, True, True)
-
-    if int(output.status_code / 100) != 2:
-        raise DevOpsError(
-            output.status_code,
-            "Got non-2xx response from Version center.",
-            error=apiError.error_3rd_party_api("Version Center", output),
-        )
-    return output
-
-
-def __api_get(path, params=None, headers=None, with_token=True):
-    return __api_request("GET", path, params=params, headers=headers, with_token=with_token)
-
-
-def __api_post(path, params=None, headers=None, data=None, with_token=True):
-    return __api_request("POST", path, headers=headers, data=data, params=params, with_token=with_token)
-
-
-def __api_put(path, params=None, headers=None, data=None, with_token=True):
-    return __api_request("PUT", path, headers=headers, data=data, params=params, with_token=with_token)
-
-
-def __api_delete(path, params=None, headers=None, with_token=True):
-    return __api_request("DELETE", path, params=params, headers=headers, with_token=with_token)
-
-
-def login():
-    global version_center_token
-    dp_uuid = model.NexusVersion.query.one().deployment_uuid
-    res = __api_post(
-        "/login",
-        params={"uuid": dp_uuid, "name": config.get("DEPLOYMENT_NAME")},
-        with_token=False,
-    )
-    version_center_token = res.json().get("data", {}).get("access_token", None)
-
-
-def has_devops_update():
-    current_version = current_devops_version()
-    try:
-        versions = __api_get("/current_version").json().get("data", None)
-    except Exception:
-        return {
-            "has_update": False,
-            "latest_version": {
-                "version_name": "N/A",
-                "api_image_tag": "N/A",
-                "ui_image_tag": "N/A",
-                "create_at": "1970-01-01 00:00:00.000000",
-            },
-        }
-    if versions is None:
-        raise DevOpsError(500, "/current_version returns no data.")
-    # Has new version, send notificaation message to administrators
-    if current_version != versions["version_name"] and check_message_exist(versions["version_name"], 101) is False:
-        args = {
-            "alert_level": 101,
-            "title": f"New version: {versions['version_name']}",
-            "type_ids": [4],
-            "type_parameters": {"role_ids": [5]},
-            "message": f"New version: {versions['version_name']}",
-        }
-        # close old version notification message
-        close_version_notification()
-        create_notification_message(args, user_id=1)
-    return {
-        "has_update": current_version != versions["version_name"],
-        "latest_version": versions,
-    }
-
-
-def update_deployment(versions):
-    """
-    1. update API, UI image tag.
-    """
-    version_name = versions["version_name"]
-    logger.info(f"Update perl on {version_name}...")
-    deployer_node_ip = config.get("DEPLOYER_NODE_IP")
-    # if deployer_node_ip is None:
-    #     # get the k8s cluster the oldest node ip
-    #     deployer_node_ip = kubernetesClient.get_the_oldest_node()[0]
-
-    # Delete old templates cache
-    delete_template_cache()
-
-    # Continue update process
-    output_str, error_str = util.ssh_to_node_by_key("/home/rkeuser/deploy-devops/bin/update-perl.pl", deployer_node_ip)
-    if error_str != "":
-        not_found_message = error_str.split(":")[-1].replace("\n", "")
-        if not_found_message != " No such file or directory":
-            if output_str != "":
-                complete_message = output_str.split("==")[-2]
-                if complete_message != "process complete":
-                    logger.exception(f"Can not update perl on {version_name}")
-            else:
-                logger.exception(str(error_str))
-
-    close_version_notification()
-
-    logger.info(f"Updating deployment to {version_name}...")
-    api_image_tag = versions["api_image_tag"]
-    ui_image_tag = versions["ui_image_tag"]
-    # kubernetesClient.update_deployment_image_tag("default", "devopsapi", api_image_tag)
-    # kubernetesClient.update_deployment_image_tag("default", "devopsui", ui_image_tag)
-    # Record update done
-    model.NexusVersion.query.one().deploy_version = version_name
-    model.db.session.commit()
-    __api_post("/report_update", data={"version_name": version_name})
-
-
-def close_version_notification():
-    rows = model.NotificationMessage.query.filter(
-        and_(
-            model.NotificationMessage.alert_level == 101,
-            model.NotificationMessage.close == False,
-        )
-    ).all()
-    if len(rows) > 0:
-        for row in rows:
-            close_notification_message(row.id)
-
-'''
 
 
 def current_devops_version():
@@ -266,6 +215,7 @@ def get_deployment_info():
 class DevOpsVersion(Resource):
     @jwt_required()
     def get(self):
+        VersionCenter().update_iii_host_info_in_vc()
         return util.success(get_deployment_info())
 
 

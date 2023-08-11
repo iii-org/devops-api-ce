@@ -642,8 +642,7 @@ def start_prod_extra_funcs():
     """
     try:
         # Register in version center
-        devops_version.login()
-        devops_version.register_in_vc(force_update=True)
+        devops_version.VersionCenter().update_version_in_db_and_vc()
         import requests
         for url in ["https://excalidraw.dev7.iiidevops.org/", "https://socket-excalidraw.dev7.iiidevops.org/socket.io"]:
             a = requests.get(url, verify=False, timeout=20).status_code < 500

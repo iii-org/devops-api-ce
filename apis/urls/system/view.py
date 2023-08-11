@@ -5,13 +5,12 @@ from flask_restful import Resource
 from resources.system import (
     send_merge_request_notification,
     system_git_commit_id,
-    system_info_report,
 )
-
+from resources.devops_version import VersionCenter
 
 class SystemInfoReport(Resource):
     def put(self):
-        system_info_report()
+        VersionCenter().update_iii_host_info_in_vc()
         return util.success()
 
 

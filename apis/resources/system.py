@@ -1,10 +1,5 @@
-import json
 import os
 
-import config
-import model
-import requests
-import util
 from model import (
     NotificationMessage,
     NotificationMessageRecipient,
@@ -77,39 +72,6 @@ def filter_and_send_notification(pj_member, mr_obj, p_branches):
                     "type_parameters": {"user_ids": [upr_row.user_id]},
                 }
                 create_notification_message(args, user_id=1)
-
-
-def system_info_report():
-    from resources.devops_version import register_in_vc
-    register_in_vc()
-    
-    # version_center_url = config.get("VERSION_CENTER_BASE_URL")
-    # if version_center_url is None:
-    #     version_center_url = "https://version-center.iiidevops.org"
-
-    # deployer_node_ip = config.get("DEPLOYER_NODE_IP")
-
-    # output_str, error_str = util.ssh_to_node_by_key("~/deploy-devops/bin/get-sysinfo.pl", deployer_node_ip)
-    # if not error_str:
-    #     # Sent system data to devops version center
-    #     row = model.NexusVersion.query.first()
-    #     output_str = json.loads(output_str)
-    #     r = requests.post(f"{version_center_url}/login", params={"uuid": row.deployment_uuid})
-    #     if r.status_code >= 200 and r.status_code < 300:
-    #         headers = {
-    #             "Authorization": f"Bearer {json.loads(r.text)['data']['access_token']}",
-    #             "Content-Type": "application/json",
-    #         }
-    #         requests.post(
-    #             f"{version_center_url}/report_info",
-    #             headers=headers,
-    #             params={"uuid": row.deployment_uuid},
-    #             data=json.dumps(output_str),
-    #         )
-    #     else:
-    #         raise apiError.DevOpsError(503, "Can not get version-center token")
-    # else:
-    #     raise apiError.DevOpsError(503, "Can not get deployer server response from ssh")
 
 
 def system_git_commit_id():
