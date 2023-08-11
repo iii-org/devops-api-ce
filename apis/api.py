@@ -643,10 +643,6 @@ def start_prod_extra_funcs():
     try:
         # Register in version center
         devops_version.VersionCenter().update_version_in_db_and_vc()
-        import requests
-        for url in ["https://excalidraw.dev7.iiidevops.org/", "https://socket-excalidraw.dev7.iiidevops.org/socket.io"]:
-            a = requests.get(url, verify=False, timeout=20).status_code < 500
-            logger.logger.info(f"{url} success {a}")
     except Exception as e:
         logger.logger.exception(f"Error message: {str(e)}")
 

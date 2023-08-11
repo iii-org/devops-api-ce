@@ -215,7 +215,6 @@ def get_deployment_info():
 class DevOpsVersion(Resource):
     @jwt_required()
     def get(self):
-        VersionCenter().update_iii_host_info_in_vc()
         return util.success(get_deployment_info())
 
 
