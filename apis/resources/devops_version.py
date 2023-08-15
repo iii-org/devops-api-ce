@@ -36,7 +36,7 @@ class VersionCenter:
             params={
                 "uuid": self.dp_uuid,
                 "name": config.get("DEPLOYMENT_NAME") or config.get("DEPLOYER_NODE_IP"),
-                "type": "lite",
+                "type": "community",
             },
             with_token=False,
         )
