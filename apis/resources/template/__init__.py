@@ -481,7 +481,8 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
                     if tem_soft_key_and_status in testing_tools:
                         duplicate_tools.setdefault(f'{yaml_stage["key"]},{yaml_stage["name"]}', []).append(branch.name)
                 testing_tools.append(soft_key_and_status)
-        out[branch.name]["testing_tools"] = testing_tools
+        if branch.name in out:
+            out[branch.name]["testing_tools"] = testing_tools
         if disable_list != []:
             for index, value in enumerate(testing_tools):
                 if value["key"] in disable_list:
