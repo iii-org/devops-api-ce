@@ -135,7 +135,7 @@ def project_tracker_must_has_father_issue(project_id, tracker_name):
 def gitlab_ci_yaml_format_error(project_name: str, branch_name: str, error_message: str):
     return build(
         1019,
-        f".gitlab-ci.yml format error",
+        f".gitlab-ci.yml error",
         {"project_name": project_name, "branch_name": branch_name, "error_message": error_message},
     )
 
