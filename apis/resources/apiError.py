@@ -132,6 +132,14 @@ def project_tracker_must_has_father_issue(project_id, tracker_name):
     )
 
 
+def gitlab_ci_yaml_format_error(project_name: str, branch_name: str, error_message: str):
+    return build(
+        1019,
+        f".gitlab-ci.yml format error",
+        {"project_name": project_name, "branch_name": branch_name, "error_message": error_message},
+    )
+
+
 # 2: User errors
 def user_not_found(user_id):
     return build(2001, "User not found.", {"user_id": user_id})

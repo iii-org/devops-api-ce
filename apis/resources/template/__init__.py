@@ -695,11 +695,18 @@ def initial_gitlab_pipline_info(repository_id, branch_name=None):
     default_branch = pj.default_branch
     if branch_name is None:
         branch_name = default_branch
-    pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=default_branch)
+    pipe_yaml_name = __tm_get_pipe_file_name(pj, branch_name=branch_name)
     if pipe_yaml_name is None:
         return {}
-    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=default_branch)
-    pipe_dict = yaml.safe_load(f.decode())
+    f = rs_gitlab.gl_get_file_from_lib(repository_id, pipe_yaml_name, branch_name=branch_name)
+    try:
+        pipe_dict = yaml.safe_load(f.decode())
+    except Exception as ex:
+        raise apiError.DevOpsError(
+            422,
+            ".gitlab-ci.yml format error",
+            error=apiError.gitlab_ci_yaml_format_error(pj.name, branch_name, str(ex)),
+        )
     pipe_dict = {k: v for k, v in pipe_dict.items() if FILTER_OUT_PIPELINE_FILE_INFO_CONDITION(k)}
     return {"default_branch": default_branch, "pipe_dict": pipe_dict}
 
