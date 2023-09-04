@@ -4,6 +4,7 @@ from resources import project, project_relation
 from resources import logger
 from resources.devops_version import VersionCenter
 from resources import issue
+from resources import system
 
 def error_handler(func):
     def wrap(*args, **kwargs):
@@ -47,3 +48,8 @@ def report_to_version_center() -> None:
 @error_handler
 def sync_issue_watcher_list() -> None:
     issue.sync_issue_watcher_list()
+
+@celery.task(name="remove_unused_volume")
+@error_handler
+def remove_unused_volume() -> None:
+    system.remove_unused_volume()

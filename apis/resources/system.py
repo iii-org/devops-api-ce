@@ -17,7 +17,8 @@ from resources.notification_message import (
     close_notification_message,
     create_notification_message,
 )
-
+import subprocess
+from resources.logger import logger
 
 """
 1. another way to check redeploy ip
@@ -132,3 +133,15 @@ def send_merge_request_notification():
                             if len(nm_rows) > 0:
                                 for nm_row in nm_rows:
                                     close_notification_message(nm_row.id)
+
+
+def remove_unused_volume():
+    """
+    Remove unused volume
+    """
+    cmd = "docker volume ls -qf dangling=true | xargs --no-run-if-empty docker volume rm"
+    cmd_list = cmd.split(" ")
+    result = subprocess.run(cmd_list, stdout=subprocess.PIPE)
+    result = result.stdout.decode("utf-8")
+    print(result)
+    logger.info(f"Remove used volume: {result}")
