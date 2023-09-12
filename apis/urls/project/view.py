@@ -1324,3 +1324,37 @@ class ProjectResourceStorage(MethodResource):
     @jwt_required()
     def patch(self, project_id, **kwargs):
         return util.success(update_project_resource_storage_level(project_id, args=kwargs))
+
+##### project Intedrations ######
+
+
+class ProjectIntegrations(MethodResource):
+    @doc(tags=["Project"], description="Get project's Slack notifications info.")
+    @marshal_with(router_model.ProjectIntegrationsResponse)
+    @jwt_required()
+    def get(self, repository_id):
+        return util.success(project.get_project_integrations(repository_id))
+
+
+##### project Slack Notifications ######
+
+
+class ProjectSlackNotifications(MethodResource):
+    @doc(tags=["Project"], description="Get project's Slack notifications info.")
+    @marshal_with(router_model.ProjectSlackNotificationsResponse)
+    @jwt_required()
+    def get(self, repository_id):
+        return util.success(project.get_project_slack_notifications(repository_id))
+
+    @doc(tags=["Project"], description="Set project's Slack Notifications info.")
+    @use_kwargs(router_model.ProjectSlackNotificationsSchema, location="json")
+    @marshal_with(router_model.ProjectSlackNotificationsResponse)
+    @jwt_required()
+    def put(self, repository_id, **kwargs):
+        return util.success(project.set_project_slack_notifications(repository_id, args=kwargs))
+
+    @doc(tags=["Project"], description="Get project's Slack notifications info.")
+    @marshal_with(router_model.ProjectSlackNotificationsResponse)
+    @jwt_required()
+    def delete(self, repository_id):
+        return util.success(project.disable_project_slack_notifications(repository_id))

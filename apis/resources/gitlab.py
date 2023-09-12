@@ -1081,6 +1081,24 @@ class GitLab(object):
         data.update({"key": key, "value": value})
         return self.gl_create_pj_variable(repo_id, data)
 
+    ############################
+    # Gitlab integrations
+    ############################
+    def gl_get_pj_integrations(self, repo_id: str):
+        return self.__api_get(f"/projects/{repo_id}/services").json()
+
+    ############################
+    # Slack notifications
+    ############################
+    def gl_set_pj_slack_notifications(self, repo_id: str, params: dict):
+        return self.__api_put(f"/projects/{repo_id}/services/slack", params=params).json()
+
+    def gl_disable_pj_slack_notifications(self, repo_id: str):
+        return self.__api_delete(f"/projects/{repo_id}/services/slack")
+
+    def gl_get_pj_slack_notifications(self, repo_id: str):
+        return self.__api_get(f"/projects/{repo_id}/services/slack").json()
+
 
 def rerun_pipeline(repo_id: int, pipeline_id: int, branch: str):
     latest_commit_info = gitlab.gl_get_commits(repo_id, branch, per_page=1)

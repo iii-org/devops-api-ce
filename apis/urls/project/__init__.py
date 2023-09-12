@@ -337,3 +337,15 @@ def project_url(api, add_resource):
     # project resource info
     api.add_resource(view.ProjectResourceStorage, "/v2/project/<sint:project_id>/resoure_info")
     add_resource(view.ProjectResourceStorage, "private")
+
+    ##########################
+    # project integrations
+    ##########################
+    api.add_resource(view.ProjectIntegrations, "/v2/project/<sint:repository_id>/integrations")
+    add_resource(view.ProjectIntegrations, "private")
+
+    ##########################
+    # project Slack Notification
+    ##########################
+    api.add_resource(view.ProjectSlackNotifications, "/v2/project/<sint:repository_id>/slack/notifications")
+    add_resource(view.ProjectSlackNotifications, "private")

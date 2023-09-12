@@ -1148,4 +1148,27 @@ def sync_project_issue_calculate():
     update_pj_issue_calcs(project_issue_calculate)
 
 
+# --------------------- Gitlab integrations ---------------------
+
+
+def get_project_integrations(repository_id: int) -> dict:
+    return gitlab.gl_get_pj_integrations(repository_id)
+
+
+# --------------------- Slack Notifications ---------------------
+
+
+def get_project_slack_notifications(repository_id: int) -> dict:
+    return gitlab.gl_get_pj_slack_notifications(repository_id)
+
+
+def set_project_slack_notifications(repository_id: int, args: dict) -> dict:
+    return gitlab.gl_set_pj_slack_notifications(repository_id, args)
+
+
+def disable_project_slack_notifications(repository_id: int) -> dict:
+    gitlab.gl_disable_pj_slack_notifications(repository_id)
+    return get_project_slack_notifications(repository_id)
+
+
 # --------------------- Resources ---------------------

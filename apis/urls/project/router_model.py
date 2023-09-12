@@ -1204,3 +1204,57 @@ class ProjectResourceStorageRes(CommonBasicResponse):
             "project_id": 1,
         }
     )
+
+
+##### Project's Integrations  ######
+
+#################################### Schema ####################################
+
+#################################### Response ####################################
+
+class ProjectIntegrationsResponse(CommonBasicResponse):
+    data = fields.List(fields.Dict(required=True))
+
+
+##### Project's Slack Notifications  ######
+
+#################################### Schema ####################################
+
+
+#################################### Response ####################################
+
+class ProjectSlackNotificationsSchema(Schema):
+    webhook = fields.Str(required=True, example="https://hooks.slack.com/services/...")
+    username = fields.Str(required=True)
+    channel = fields.Str(required=False, load_default="")
+    notify_only_broken_pipelines = fields.Bool(required=True)
+    notify_only_default_branch = fields.Bool(required=False, load_default=True)
+    branches_to_be_notified = fields.Str(required=True, example="all")
+    commit_events = fields.Bool(required=True)
+    confidential_issue_channel = fields.Str(required=False, load_default="")
+    confidential_issues_events = fields.Bool(required=False, load_default=True)
+    confidential_note_channel = fields.Str(required=False, load_default="")
+    confidential_note_events = fields.Bool(required=False, load_default=True)
+    deployment_channel = fields.Str(required=False, load_default="")
+    deployment_events = fields.Bool(required=False, load_default=True)
+    issue_channel = fields.Str(required=False, load_default="")
+    issues_events = fields.Bool(required=False, load_default=True)
+    job_events = fields.Bool(required=True)
+    merge_request_channel = fields.Str(required=False, load_default="")
+    merge_requests_events = fields.Bool(required=True)
+    note_channel = fields.Str(required=False, load_default="")
+    note_events = fields.Bool(required=True)
+    pipeline_channel = fields.Str(required=False, load_default="")
+    pipeline_events = fields.Bool(required=True)
+    push_channel = fields.Str(required=False, load_default="")
+    push_events = fields.Bool(required=True)
+    tag_push_channel = fields.Str(required=False, load_default="")
+    tag_push_events = fields.Bool(required=True)
+    wiki_page_channel = fields.Str(required=False, load_default="")
+    wiki_page_events = fields.Bool(required=False, load_default=True)
+
+
+#################################### Response ####################################
+
+class ProjectSlackNotificationsResponse(CommonBasicResponse):
+    data = fields.Dict(required=True)
