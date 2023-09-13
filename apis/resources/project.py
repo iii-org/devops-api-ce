@@ -46,7 +46,13 @@ from resources.project_relation import get_all_sons_project, get_plan_id
 from flask_apispec import doc
 from flask_apispec.views import MethodResource
 from resources import role
-from resources.redis import update_pj_issue_calcs, get_certain_pj_issue_calc
+from resources.redis import (
+    update_pj_issue_calcs,
+    get_certain_pj_issue_calc,
+    update_slack_notifications_webhook,
+    get_slack_notifications_webhook,
+    delete_slack_notifications_webhook,
+)
 import config
 from typing import Any
 
@@ -1156,19 +1162,38 @@ def get_project_integrations(repository_id: int) -> dict:
 
 
 # --------------------- Slack Notifications ---------------------
+WORK_CARD = "********"
 
 
 def get_project_slack_notifications(repository_id: int) -> dict:
-    return gitlab.gl_get_pj_slack_notifications(repository_id)
+    result = gitlab.gl_get_pj_slack_notifications(repository_id)
+    if result.get("active") is True:
+        result["properties"]["webhook"] = WORK_CARD
+        result["is_locked"] = get_slack_notifications_webhook_from_redis(str(repository_id)) is None
+    else:
+        result["properties"]["webhook"] = None
+        result["is_locked"] = False
+    return result
 
 
 def set_project_slack_notifications(repository_id: int, args: dict) -> dict:
-    return gitlab.gl_set_pj_slack_notifications(repository_id, args)
+    if args.get("webhook") == WORK_CARD:
+        args["webhook"] = get_slack_notifications_webhook_from_redis(str(repository_id))
+    result = gitlab.gl_set_pj_slack_notifications(repository_id, args)
+    result["properties"]["webhook"] = WORK_CARD
+    update_slack_notifications_webhook(str(repository_id), args.get("webhook"))
+    result["is_locked"] = get_slack_notifications_webhook_from_redis(str(repository_id)) is None
+    return result
 
 
 def disable_project_slack_notifications(repository_id: int) -> dict:
     gitlab.gl_disable_pj_slack_notifications(repository_id)
+    delete_slack_notifications_webhook(str(repository_id))
     return get_project_slack_notifications(repository_id)
+
+
+def get_slack_notifications_webhook_from_redis(repo_id: str) -> str:
+    return get_slack_notifications_webhook(repo_id)
 
 
 # --------------------- Resources ---------------------

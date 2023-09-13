@@ -10,7 +10,7 @@ ISSUE_FAMILIES_KEY = "issue_families"
 PROJECT_ISSUE_CALCULATE_KEY = "project_issue_calculation"
 SERVER_ALIVE_KEY = "system_all_alive"
 USER_WATCH_ISSUE_LIST = "user_watch_issue_list"
-
+SLACK_NOTIFICATIONS_WEBHOOK = "slack_notifications_webhook"
 
 redis_op = iii_redis.redis_op
 
@@ -141,4 +141,17 @@ def update_pj_issue_calc(pj_id, total_count=0, closed_count=0):
     return redis_op.dict_set_certain(PROJECT_ISSUE_CALCULATE_KEY, pj_id, json.dumps(pj_issue_calc))
 
 
+# slack notifications webhook
+def update_slack_notifications_webhook(repo_id: str, webhook: str):
+    return redis_op.dict_set_certain(SLACK_NOTIFICATIONS_WEBHOOK, repo_id, webhook)
 
+
+def get_slack_notifications_webhook(repo_id: str) -> str:
+    return redis_op.dict_get_certain(SLACK_NOTIFICATIONS_WEBHOOK, repo_id)
+
+
+def delete_slack_notifications_webhook(repo_id: str) -> None:
+    if redis_op.dict_len(SLACK_NOTIFICATIONS_WEBHOOK) > 1:
+        redis_op.dict_delete_certain(SLACK_NOTIFICATIONS_WEBHOOK, repo_id)
+    else:
+        redis_op.dict_delete_all(SLACK_NOTIFICATIONS_WEBHOOK)
