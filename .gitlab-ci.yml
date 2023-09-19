@@ -26,6 +26,7 @@ Build image:
   only:
   - master
   - develop
+  - pipeline-update
 Build--Scan docker image:
   stage: build
   image:
@@ -46,6 +47,7 @@ Build--Scan docker image:
   only:
   - master
   - develop
+  - pipeline-update
   except:
     variables:
     - $CI_COMMIT_MESSAGE =~ /.*\(store\)$/
