@@ -37,5 +37,9 @@ celery_config = {
             "task": "sync_issue_watcher_list",
             "schedule": crontab(minute='4'),
         },
+        "remove_unused_volume": {            
+            "task": "remove_unused_volume",
+            "schedule": crontab(minute='10', hour="0"),
+        },
     },
 }

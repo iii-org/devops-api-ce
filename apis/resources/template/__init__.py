@@ -544,7 +544,7 @@ def get_tool_name(stage):
 
 def update_pipeline_info_branches(stage, pipeline_soft, branch, enable_key_name, exist_branches):
     had_update_branch = False
-    tool_name = stage.get("stage")
+    tool_name = stage.get("variables", {}).get("iiidevops")
     if pipeline_soft["key"] == tool_name:
         execute_stages = stage["only"]
         if pipeline_soft[enable_key_name] and branch not in execute_stages:
@@ -727,8 +727,13 @@ def tm_get_pipeline_default_branch(repository_id: int, is_default_branch: bool =
     return_stages = []
 
     for _, stage_info in file_stages.items():
-        tool = stage_info["stage"]
-        if tool in skip_record_tools:
+        if isinstance(stage_info, list):
+            continue
+        # initial 沒有 variables 這個 KEY
+        if "variables" not in stage_info:
+            continue
+        tool = stage_info["variables"].get("iiidevops")
+        if tool in skip_record_tools or tool is None:
             continue
 
         single_stage = {"has_default_branch": False}
