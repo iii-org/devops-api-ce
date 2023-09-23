@@ -1,31 +1,22 @@
-import os
-import sys
-import threading
-import traceback
-from os.path import isfile
-from pathlib import Path
 import re
+import traceback
 
+import urllib3
 import werkzeug
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
+from celery import Celery
 from flask import Flask, has_app_context
 from flask_apispec.extension import FlaskApiSpec
 from flask_cors import CORS
 from flask_jwt_extended import jwt_required
 from flask_restful import Resource, Api, reqparse
 from flask_socketio import SocketIO
-from celery import Celery
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy_utils import database_exists, create_database, drop_database
 from werkzeug.routing import IntegerConverter
 
-if str(Path(__file__).parent) not in sys.path:
-    sys.path.insert(1, str(Path(__file__).parent))
-
 import config
-config.insert_env_file_in_env()
-
 import migrate
 import model
 import plugins
@@ -33,34 +24,38 @@ import resources.apiError as apiError
 import resources.pipeline as pipeline
 import routine_job
 import util
+from celeries.celery_config import celery_config
 from jsonwebtoken import jsonwebtoken
 from model import db
-from celeries.celery_config import celery_config
-from resources import logger, role as role, activity, starred_project, devops_version, cicd
 from resources import (
-    project,
     gitlab,
     issue,
     user,
     redmine,
     apiTest,
     template,
-    release,
     sync_redmine,
     plugin,
     project_permission,
-    quality,
-    deploy,
     alert,
-    trace_order,
     system_parameter,
-    maintenance,
     issue_display_field,
+)
+from resources import (
+    logger,
+    role as role,
+    activity,
+    starred_project,
+    devops_version,
+    cicd,
 )
 from resources.redis import should_update_template_cache
 from resources.template import fetch_and_update_template_cache
 
-if config.get("DEBUG") is False:
+if config.DEBUG:
+    urllib3.disable_warnings()
+
+if config.DEBUG is False:
     import eventlet
 
     eventlet.monkey_patch(socket=True, select=True, thread=True)
@@ -70,17 +65,13 @@ if config.get("DEBUG") is False:
 
 from urls.issue import issue_url
 from urls.lock import lock_url
-from urls.notification_message import notification_message_url
 from urls.project import project_url
 from urls.router import router_url
-from urls.sync_projects import sync_projects_url
-from urls.sync_users import sync_users_url
 from urls.system import system_url
 from urls.system_parameter import sync_system_parameter_url
 from urls.tag import tag_url
 from urls.template import template_url
 from urls.user import user_url
-
 
 app = Flask(__name__)
 for key in [
@@ -152,7 +143,13 @@ if config.get("DEBUG") is False:
         timeout=60000,
     )
 else:
-    socketio = SocketIO(app, cors_allowed_origins="*", logger=True, engineio_logger=True, timeout=60000)
+    socketio = SocketIO(
+        app,
+        cors_allowed_origins="*",
+        logger=True,
+        engineio_logger=True,
+        timeout=60000,
+    )
 
 
 class SignedIntConverter(IntegerConverter):
@@ -160,7 +157,6 @@ class SignedIntConverter(IntegerConverter):
 
 
 app.url_map.converters["sint"] = SignedIntConverter
-
 
 ## Celery
 
@@ -209,27 +205,35 @@ db.app = app
 @app.errorhandler(Exception)
 def internal_error(exception):
     if type(exception) is NoResultFound:
-        return util.respond(404, "Resource not found.", error=apiError.resource_not_found())
+        return util.respond(
+            404, "Resource not found.", error=apiError.resource_not_found()
+        )
     if type(exception) is werkzeug.exceptions.NotFound:
         return util.respond(404, "Path not found.", error=apiError.path_not_found())
     if type(exception) is apiError.DevOpsError:
         traceback.print_exc()
         logger.logger.exception(str(exception))
-        return util.respond(exception.status_code, exception.message, error=exception.error_value)
+        return util.respond(
+            exception.status_code, exception.message, error=exception.error_value
+        )
     if type(exception) is werkzeug.exceptions.UnprocessableEntity:
         mes = exception.data.get("messages", {})
         error_message = mes.get("json") or mes.get("query") or mes.get("form")
         return util.respond(422, error_message)
     traceback.print_exc()
     logger.logger.exception(str(exception))
-    return util.respond(500, "Unexpected internal error", error=apiError.uncaught_exception(exception))
+    return util.respond(
+        500, "Unexpected internal error", error=apiError.uncaught_exception(exception)
+    )
 
 
 class NexusVersion(Resource):
     @jwt_required()
     def get(self):
         row = model.NexusVersion.query.one()
-        return util.success({"api_version": row.api_version, "deploy_version": row.deploy_version})
+        return util.success(
+            {"api_version": row.api_version, "deploy_version": row.deploy_version}
+        )
 
     @jwt_required()
     def post(self):
@@ -248,16 +252,20 @@ class NexusVersion(Resource):
 
     @staticmethod
     def _check(check: str) -> str:
-        error: apiError.DevOpsError = apiError.DevOpsError(400, "api_version is not valid")
+        error: apiError.DevOpsError = apiError.DevOpsError(
+            400, "api_version is not valid"
+        )
         # check regex only digit and dot
-        if re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None and check.lower() != "develop":
+        if (
+            re.match(r"^[Vv]?\d+(\.\d+)*$", check) is None
+            and check.lower() != "develop"
+        ):
             raise error
 
         return check
 
 
 router_url(api, add_resource)
-
 
 # Projects
 api.add_resource(starred_project.StarredProject, "/project/<sint:project_id>/star")
@@ -275,7 +283,10 @@ api.add_resource(
     "/project/<sint:project_id>/issues_commit",
     "/project/<sint:project_id>/issues_commit/<issue_id>",
 )
-api.add_resource(gitlab.GetCommitIssueHookByBranch, "/project/<sint:project_id>/issues_commit/by_branch")
+api.add_resource(
+    gitlab.GetCommitIssueHookByBranch,
+    "/project/<sint:project_id>/issues_commit/by_branch",
+)
 
 project_url(api, add_resource)
 
@@ -283,22 +294,38 @@ project_url(api, add_resource)
 tag_url(api, add_resource)
 template_url(api, add_resource)
 
-
 api.add_resource(template.TemplateList, "/template_list")
 api.add_resource(template.TemplateListForCronJob, "/template_list_for_cronjob")
 api.add_resource(template.SingleTemplate, "/template", "/template/<repository_id>")
-api.add_resource(template.ProjectPipelineBranches, "/project/<repository_id>/pipeline/branches")
-api.add_resource(template.ProjectPipelineDefaultBranch, "/project/<repository_id>/pipeline/default_branch")
+api.add_resource(
+    template.ProjectPipelineBranches, "/project/<repository_id>/pipeline/branches"
+)
+api.add_resource(
+    template.ProjectPipelineDefaultBranch,
+    "/project/<repository_id>/pipeline/default_branch",
+)
 
 # Gitlab project
 api.add_resource(gitlab.GitProjectBranches, "/repositories/<repository_id>/branches")
-api.add_resource(gitlab.GitProjectBranchesV2, "/v2/repositories/<repository_id>/branches")
+api.add_resource(
+    gitlab.GitProjectBranchesV2, "/v2/repositories/<repository_id>/branches"
+)
 add_resource(gitlab.GitProjectBranchesV2, "public")
-api.add_resource(gitlab.GitProjectBranch, "/repositories/<repository_id>/branch/<branch_name>")
-api.add_resource(gitlab.GitProjectBranchV2, "/v2/repositories/<repository_id>/branch/<branch_name>")
+api.add_resource(
+    gitlab.GitProjectBranch, "/repositories/<repository_id>/branch/<branch_name>"
+)
+api.add_resource(
+    gitlab.GitProjectBranchV2, "/v2/repositories/<repository_id>/branch/<branch_name>"
+)
 add_resource(gitlab.GitProjectBranchV2, "public")
-api.add_resource(gitlab.GitProjectRepositories, "/repositories/<repository_id>/branch/<branch_name>/tree")
-api.add_resource(gitlab.GitProjectRepositoriesV2, "/v2/repositories/<repository_id>/branch/<branch_name>/tree")
+api.add_resource(
+    gitlab.GitProjectRepositories,
+    "/repositories/<repository_id>/branch/<branch_name>/tree",
+)
+api.add_resource(
+    gitlab.GitProjectRepositoriesV2,
+    "/v2/repositories/<repository_id>/branch/<branch_name>/tree",
+)
 add_resource(gitlab.GitProjectRepositoriesV2, "public")
 api.add_resource(
     gitlab.GitProjectFile,
@@ -306,20 +333,35 @@ api.add_resource(
     "/repositories/<repository_id>/branch/<branch_name>/files/<file_path>",
 )
 api.add_resource(
-    gitlab.GitProjectTag, "/repositories/<repository_id>/tags/<tag_name>", "/repositories/<repository_id>/tags"
+    gitlab.GitProjectTag,
+    "/repositories/<repository_id>/tags/<tag_name>",
+    "/repositories/<repository_id>/tags",
 )
 api.add_resource(
-    gitlab.GitProjectTagV2, "/v2/repositories/<repository_id>/tags/<tag_name>", "/v2/repositories/<repository_id>/tags"
+    gitlab.GitProjectTagV2,
+    "/v2/repositories/<repository_id>/tags/<tag_name>",
+    "/v2/repositories/<repository_id>/tags",
 )
 add_resource(gitlab.GitProjectTagV2, "public")
-api.add_resource(gitlab.GitProjectBranchCommits, "/repositories/<repository_id>/commits")
-api.add_resource(gitlab.GitProjectBranchCommitsV2, "/v2/repositories/<repository_id>/commits")
+api.add_resource(
+    gitlab.GitProjectBranchCommits, "/repositories/<repository_id>/commits"
+)
+api.add_resource(
+    gitlab.GitProjectBranchCommitsV2, "/v2/repositories/<repository_id>/commits"
+)
 add_resource(gitlab.GitProjectBranchCommitsV2, "public")
-api.add_resource(gitlab.GitProjectMembersCommits, "/repositories/<repository_id>/members_commits")
-api.add_resource(gitlab.GitProjectMembersCommitsV2, "/v2/repositories/<repository_id>/members_commits")
+api.add_resource(
+    gitlab.GitProjectMembersCommits, "/repositories/<repository_id>/members_commits"
+)
+api.add_resource(
+    gitlab.GitProjectMembersCommitsV2,
+    "/v2/repositories/<repository_id>/members_commits",
+)
 add_resource(gitlab.GitProjectMembersCommitsV2, "public")
 api.add_resource(gitlab.GitProjectNetwork, "/repositories/<repository_id>/overview")
-api.add_resource(gitlab.GitProjectNetworkV2, "/v2/repositories/<repository_id>/overview")
+api.add_resource(
+    gitlab.GitProjectNetworkV2, "/v2/repositories/<repository_id>/overview"
+)
 add_resource(gitlab.GitProjectNetworkV2, "public")
 api.add_resource(gitlab.GitProjectId, "/repositories/<repository_id>/id")
 api.add_resource(gitlab.GitProjectIdV2, "/v2/repositories/<repository_id>/id")
@@ -343,10 +385,11 @@ user_url(api, add_resource)
 api.add_resource(role.RoleList, "/user/role/list")
 
 # pipeline
-api.add_resource(pipeline.PipelineExecAction, "/pipelines/<repository_id>/pipelines_exec/action")
+api.add_resource(
+    pipeline.PipelineExecAction, "/pipelines/<repository_id>/pipelines_exec/action"
+)
 api.add_resource(pipeline.PipelineExec, "/pipelines/<repository_id>/pipelines_exec")
 api.add_resource(pipeline.PipelineConfig, "/pipelines/<repository_id>/config")
-
 
 api.add_resource(pipeline.Pipeline, "/pipelines/<repository_id>/pipelines")
 # api.add_resource(pipeline.PipelineExecLogs, "/pipelines/logs")
@@ -397,11 +440,15 @@ api.add_resource(plugin.Plugin, "/plugins/<plugin_name>")
 
 # dashboard
 api.add_resource(issue.DashboardIssuePriority, "/dashboard_issues_priority/<user_id>")
-api.add_resource(issue.DashboardIssuePriorityV2, "/v2/dashboard_issues_priority/<user_id>")
+api.add_resource(
+    issue.DashboardIssuePriorityV2, "/v2/dashboard_issues_priority/<user_id>"
+)
 add_resource(issue.DashboardIssuePriorityV2, "private")
 
 api.add_resource(issue.DashboardIssueProject, "/dashboard_issues_project/<user_id>")
-api.add_resource(issue.DashboardIssueProjectV2, "/v2/dashboard_issues_project/<user_id>")
+api.add_resource(
+    issue.DashboardIssueProjectV2, "/v2/dashboard_issues_project/<user_id>"
+)
 add_resource(issue.DashboardIssueProjectV2, "private")
 
 api.add_resource(issue.DashboardIssueType, "/dashboard_issues_type/<user_id>")
@@ -457,7 +504,9 @@ add_resource(issue.ParameterTypeV2, "private")
 
 # testPhase TestCase Support Case Type
 api.add_resource(apiTest.TestCases, "/test_cases")
-api.add_resource(apiTest.TestCase, "/test_cases/<sint:tc_id>", "/testCases/<sint:tc_id>")
+api.add_resource(
+    apiTest.TestCase, "/test_cases/<sint:tc_id>", "/testCases/<sint:tc_id>"
+)
 
 api.add_resource(apiTest.GetTestCaseType, "/testCases/support_type")
 
@@ -480,12 +529,12 @@ api.add_resource(apiTest.TestValueByTestItem, "/testValues_by_testItem/<item_id>
 api.add_resource(apiTest.TestValue, "/testValues/<value_id>")
 
 # Integrated test results
-api.add_resource(cicd.CommitCicdSummary, "/project/<sint:project_id>/test_summary/<commit_id>")
-
+api.add_resource(
+    cicd.CommitCicdSummary, "/project/<sint:project_id>/test_summary/<commit_id>"
+)
 
 # Get everything by issue_id
 api.add_resource(issue.DumpByIssue, "/dump_by_issue/<issue_id>")
-
 
 # Files
 api.add_resource(redmine.RedmineFile, "/download", "/file/<int:file_id>")
@@ -499,19 +548,21 @@ system_url(api, add_resource)
 api.add_resource(activity.AllActivities, "/all_activities")
 api.add_resource(activity.ProjectActivities, "/project/<sint:project_id>/activities")
 
-
 # Sync Redmine, Gitlab, Rancher
 api.add_resource(sync_redmine.SyncRedmine, "/sync_redmine")
 api.add_resource(sync_redmine.SyncRedmineNow, "/sync_redmine/now")
-api.add_resource(gitlab.GitCountEachPjCommitsByDays, "/sync_gitlab/count_each_pj_commits_by_days")
+api.add_resource(
+    gitlab.GitCountEachPjCommitsByDays, "/sync_gitlab/count_each_pj_commits_by_days"
+)
 api.add_resource(issue.ExecuteIssueAlert, "/sync_issue_alert")
 
 # Subadmin Projects Permission
 api.add_resource(project_permission.AdminProjects, "/project_permission/admin_projects")
-api.add_resource(project_permission.SubadminProjects, "/project_permission/subadmin_projects")
+api.add_resource(
+    project_permission.SubadminProjects, "/project_permission/subadmin_projects"
+)
 api.add_resource(project_permission.Subadmins, "/project_permission/subadmins")
 api.add_resource(project_permission.SetPermission, "/project_permission/set_permission")
-
 
 # Centralized version check
 api.add_resource(devops_version.DevOpsVersion, "/devops_version")
@@ -524,11 +575,17 @@ api.add_resource(alert.ProjectAlert, "/project/<sint:project_id>/alert")
 api.add_resource(alert.ProjectAlertUpdate, "/alert/<int:alert_id>")
 api.add_resource(alert.DefaultAlertDaysUpdate, "/alert/default_days")
 
-
 # System parameter
 sync_system_parameter_url(api, add_resource)
-api.add_resource(system_parameter.SystemParameters, "/system_parameter", "/system_parameter/<int:param_id>")
-api.add_resource(system_parameter.ParameterGithubVerifyExecuteStatus, "/system_parameter/github_verify/status")
+api.add_resource(
+    system_parameter.SystemParameters,
+    "/system_parameter",
+    "/system_parameter/<int:param_id>",
+)
+api.add_resource(
+    system_parameter.ParameterGithubVerifyExecuteStatus,
+    "/system_parameter/github_verify/status",
+)
 
 # Status of Sync
 lock_url(api, add_resource)
@@ -539,7 +596,6 @@ lock_url(api, add_resource)
 # routine job
 api.add_resource(routine_job.DoJobByMonth, "/routine_job/by_month")
 api.add_resource(routine_job.DoJobByDay, "/routine_job/by_day")
-
 
 
 @app.route("/user/login", methods=["POST"])
@@ -582,7 +638,6 @@ def inject_initial_data():
 
 
 def start_prod() -> Flask:
-
     db_uri: str = config.get("SQLALCHEMY_DATABASE_URI")
     if not database_exists(db_uri):
         # Do create databases and return
@@ -649,4 +704,10 @@ def start_prod_extra_funcs():
 
 if __name__ == "__main__":
     start_prod()
-    socketio.run(app, host="0.0.0.0", port=10009)
+    socketio.run(
+        app,
+        host="0.0.0.0",
+        port=10009,
+        debug=config.DEBUG,
+        use_reloader=config.get("USE_RELOADER"),
+    )
