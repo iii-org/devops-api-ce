@@ -629,7 +629,6 @@ def inject_initial_data():
         "role_id": role.ADMIN.id,
         "status": "enable",
     }
-    print(f'create user args: {args}')
     user.create_user(args)
     logger.logger.info("Initial admin created.")
     migrate.init()

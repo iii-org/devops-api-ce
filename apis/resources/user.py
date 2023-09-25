@@ -763,7 +763,6 @@ def check_create_user_login_email_unique_db(login_name: str, email: str) -> None
 
 
 def check_create_user_login_email_unique_redmine(login_name: str, email: str, force: bool) -> None:
-    
     # Check Redmine has this login, email, if has, raise error(if force remove it.)
     offset = 0
     limit = 25
@@ -778,7 +777,6 @@ def check_create_user_login_email_unique_redmine(login_name: str, email: str, fo
                     redmine.rm_delete_user(user["id"])
                     logger.info("Force is True, so delete this Redmine account.")
                 else:
-                    print("Redmine already has this account or email.")
                     raise DevOpsError(
                         422,
                         "Redmine already has this account or email.",
@@ -798,7 +796,6 @@ def check_create_user_login_email_unique_gitlab(login_name: str, email: str, for
                 gitlab.gl_delete_user(gl_user.id)
                 logger.info("Force is True, so delete this Gitlab account.")
             else:
-                print("Gitlab already has this account or email.")
                 raise DevOpsError(
                     422,
                     "Gitlab already has this account or email.",
@@ -821,7 +818,6 @@ def check_create_user_login_email_unique_sonarqube(login_name: str, force: bool)
                     sonarqube.sq_deactivate_user(login_name)
                     logger.info("Force is True, so deactivate this SonarQube account.")
                 else:
-                    print("SonarQube already has this account.")
                     raise DevOpsError(
                         422,
                         "SonarQube already has this account.",

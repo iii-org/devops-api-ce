@@ -60,6 +60,10 @@ def _load() -> None:
         if os.path.isfile(env_file):
             load_dotenv(env_file)
 
+        # For CE version, force need to load the env file
+        else:
+            raise RuntimeError(f"Cannot find the env file: {env_file}")
+
     sql: str = (
         f"postgresql://"
         f'{get("SQLALCHEMY_ACCOUNT")}:'
