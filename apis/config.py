@@ -88,7 +88,7 @@ def _get_branch_name() -> str:
     branch_name: str = output.decode().strip()
 
     if not branch_name:
-        branch_name = "default"
+        branch_name = "HEAD"
 
     return branch_name
 

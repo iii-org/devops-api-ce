@@ -629,6 +629,7 @@ def inject_initial_data():
         "role_id": role.ADMIN.id,
         "status": "enable",
     }
+    print(f'create user args: {args}')
     user.create_user(args)
     logger.logger.info("Initial admin created.")
     migrate.init()
@@ -707,7 +708,5 @@ if __name__ == "__main__":
     socketio.run(
         app,
         host="0.0.0.0",
-        port=10009,
-        debug=config.DEBUG,
-        use_reloader=config.get("USE_RELOADER"),
+        port=10009
     )
