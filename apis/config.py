@@ -19,6 +19,7 @@ _configs: dict[str, Any] = {
     "REDIS_BASE_URL": "devops-redis-service:6379",
     "VERSION_CENTER_BASE_URL": "https://version-center.iiidevops.org",
     "VERSION_CENTER_AGENT_BAES_URL": "version-center-agent:50052",
+    "ADMIN_GROUP": "sys-admin",
 }
 
 # Define the base folder of the project
