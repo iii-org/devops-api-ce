@@ -650,6 +650,7 @@ def start_prod() -> Flask:
         try:
             db.create_all()
             logger.logger.info("Database schema created.")
+            inject_initial_data()
 
             head: str = migrate.alembic_get_head()
 
@@ -661,9 +662,9 @@ def start_prod() -> Flask:
                 logger.logger.info(f"Alembic revision set to {head}.")
 
             migrate.alembic_upgrade()
-            inject_initial_data()
 
         except Exception as e:
+            print(e)
             logger.logger.info(f"Database creation failed: \n {e}")
             drop_database(db_uri)
             exit(1)
