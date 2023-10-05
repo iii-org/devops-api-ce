@@ -1,11 +1,46 @@
-FROM python:3.9.17-slim
-RUN apt-get update && apt-get install -y --no-install-recommends git docker.io && apt clean && rm -rf /var/lib/apt/lists/*
+FROM python:3.9.18-slim AS python_base
+
+FROM bitnami/git:latest AS buildler
+
+WORKDIR /app
+
+COPY . .
+
+RUN rm -rf /app/iiidevops
+
+RUN git rev-parse HEAD > git_commit && \
+    git log -1 --date=iso8601 --format="%ad" > git_date && \
+    rm -rf .git
+
+FROM python_base AS library
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-RUN rm -rf /app/iiidevops
-RUN chmod +x sonar-scanner-4.8.0 -R
-RUN echo "ce-0.2.0-dev" > git_tag && git rev-parse HEAD > git_commit && git log -1 --date=iso8601 --format="%ad" > git_date
-# CMD ["python", "apis/api.py"]
+RUN apt-get update && \
+    apt-get install --yes --no-install-recommends git && \
+    pip install --no-cache-dir -r requirements.txt
+
+FROM python_base AS base
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends git docker.io && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /usr/src/app
+
+COPY docker-entrypoint.sh /
+
+# Pull the library
+COPY --from=library /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN echo "ce-0.2.1-dev" > git_tag
+COPY --from=buildler /app/git_commit .
+COPY --from=buildler /app/git_date .
+COPY --from=buildler /app .
+
+# ENTRYPOINT ["apis/docker-entrypoint.sh"]
 ENTRYPOINT ["/docker-entrypoint.sh"]

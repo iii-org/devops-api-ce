@@ -140,8 +140,7 @@ def remove_unused_volume():
     Remove unused volume
     """
     cmd = "docker volume ls -qf dangling=true | xargs --no-run-if-empty docker volume rm"
-    cmd_list = cmd.split(" ")
-    result = subprocess.run(cmd_list, stdout=subprocess.PIPE)
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, shell=True, check=True)
     result = result.stdout.decode("utf-8")
     print(result)
     logger.info(f"Remove used volume: {result}")
