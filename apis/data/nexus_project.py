@@ -5,6 +5,8 @@ from datetime import date
 from operator import and_
 
 from sqlalchemy import inspect
+from flask_jwt_extended import get_jwt_identity
+from resources import role
 
 import config
 import model
@@ -135,13 +137,33 @@ class NexusProject:
         ret["department"] = self.get_owner().department
         ret["has_son"] = project_has_child(self.__project_id)
         project_relation = model.ProjectParentSonRelation.query.filter_by(son_id=ret["id"]).first()
-        ret["parent_id"] = None if project_relation is None else project_relation.parent_id
+        parent_id = project_relation.parent_id if project_relation is not None else None
+
+        ret["has_parent_project_permission"] = self.__has_permission_to_display_parent_id(parent_id)
+        ret["parent_id"] = parent_id
         ret["is_empty_project"] = ret["is_empty_project"] and self.check_has_commit()
         for key, value in self.get_extra_fields().items():
             ret[key] = value
         if self.__project_members_dict is not None:
             ret["members"] = self.__project_members_dict.get(ret["id"], None)
         return ret
+
+    def __has_permission_to_display_parent_id(self, parent_pj_id: int) -> bool:
+        if parent_pj_id is None:
+            return False
+
+        current_user_id, role_id = get_jwt_identity()["user_id"], get_jwt_identity()["role_id"]
+        if role_id == role.ADMIN.id:
+            return True
+
+        parent_pj_user_object = (
+            db.session.query(ProjectUserRole, ProjectParentSonRelation)
+            .join(ProjectParentSonRelation, ProjectUserRole.project_id == ProjectParentSonRelation.parent_id)
+            .filter(ProjectUserRole.user_id == current_user_id)
+            .filter(ProjectUserRole.project_id == parent_pj_id)
+            .first()
+        )
+        return parent_pj_user_object is not None
 
     def fill_pm_extra_fields(self, rm_project, username, sync=False):
         project_issue_info = calculate_project_issues(rm_project, username, sync)
