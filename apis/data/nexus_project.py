@@ -5,6 +5,8 @@ from datetime import date
 from operator import and_
 
 from sqlalchemy import inspect
+from flask_jwt_extended import get_jwt_identity
+from resources import role
 
 import config
 import model
@@ -146,7 +148,7 @@ class NexusProject:
             ret["members"] = self.__project_members_dict.get(ret["id"], None)
         return ret
 
-    def __has_permission_to_display_parent_id(self, parent_pj_id: int | None) -> bool:
+    def __has_permission_to_display_parent_id(self, parent_pj_id: int) -> bool:
         if parent_pj_id is None:
             return False
 
