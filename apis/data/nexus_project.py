@@ -9,6 +9,7 @@ from flask_jwt_extended import get_jwt_identity
 from resources import role
 
 import config
+from model import db, ProjectParentSonRelation
 import model
 import nexus
 from model import ProjectUserRole
