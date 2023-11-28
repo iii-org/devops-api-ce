@@ -53,7 +53,7 @@ from resources.redis import (
     update_pj_issue_calc,
     get_all_issue_relations,
     set_user_issue_watcher_list,
-    get_user_issue_watcher_list
+    get_user_issue_watcher_list,
 )
 from datetime import date
 import logging
@@ -158,7 +158,6 @@ class NexusIssue:
         users_info=None,
         with_point=False,
     ):
-
         self.data = {
             "id": redmine_issue.id,
             "name": redmine_issue.subject,
@@ -1196,20 +1195,20 @@ def delete_issue(issue_id, delete_excalidraw=False):
     return "success"
 
 
-def get_issue_datetime_status(project_id:str) -> dict[str, int]:
+def get_issue_datetime_status(project_id: str) -> dict[str, int]:
     kwargs = {}
-    no_due_date_num, expire_num, normal_num= 0, 0, 0
+    no_due_date_num, expire_num, normal_num = 0, 0, 0
     issues_list = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
-    issue_info={'id':[], 'start_date':[], 'due_date':[]}
+    issue_info = {"id": [], "start_date": [], "due_date": []}
     for issue_ in issues_list:
-        if issue_['is_closed'] == False:
-            issue_info['id'].append(issue_['id'])
-            issue_info['start_date'].append(issue_['start_date'])
-            issue_info['due_date'].append(issue_['due_date'])
+        if issue_["is_closed"] == False:
+            issue_info["id"].append(issue_["id"])
+            issue_info["start_date"].append(issue_["start_date"])
+            issue_info["due_date"].append(issue_["due_date"])
 
-    total_num = len(issue_info['id'])
-    for issue_due_date in issue_info.get('due_date', []):
-        if issue_due_date is None :
+    total_num = len(issue_info["id"])
+    for issue_due_date in issue_info.get("due_date", []):
+        if issue_due_date is None:
             no_due_date_num += 1
         if issue_due_date is not None:
             expire_num += 1 if issue_due_date < str(date.today()) else None
@@ -1239,7 +1238,7 @@ def sync_issue_watcher_list():
         for issue in redmine_lib.rm_get_all_issue():
             issue_watcher_info = issue.watchers._resources
             for info in issue_watcher_info:
-                user_id = get_user_id_from_redmine_id(info.get('id'))
+                user_id = get_user_id_from_redmine_id(info.get("id"))
                 if user_watcher_list.get(str(user_id), None) is None:
                     user_watcher_list[str(user_id)] = [issue.id]
                 else:
@@ -1247,7 +1246,7 @@ def sync_issue_watcher_list():
     except Exception as e:
         logging.info(e)
     set_user_issue_watcher_list(user_watcher_list)
-    logging.info('Success sync watcher list to redis.')
+    logging.info("Success sync watcher list to redis.")
 
 
 def get_issue_by_project(project_id, args):
@@ -1279,14 +1278,39 @@ def handle_exceed_limit_length_default_filter(default_filters, issue_ids, defaul
 
 
 def get_issue_list_by_project_helper(project_id, args, download=False, operator_id=None):
+    """
+    TODO: REFACTOR THIS FUNC!!!
+    But remind that this func is used by other funcs, so be careful when refactoring.
+    (wbs, download issue list)
+    And if is available, please discuss with frontend of redesinged return data sturture.
+    """
+    logger.logger.debug(f"Getting issue list by project id: {project_id}")
+    logger.logger.debug(f"Args: {args}, download: {download}, operator_id: {operator_id}")
     nx_issue_params = defaultdict()
-    output = []
+
+    """
+    Due to the absence of a project ID filter in the Redmine /search API and 
+    the potential length issue when retrieving all issues across all projects (resulting in an error due to URL length limit)
+    so if parameter has 'search' even it provides 'limit' 'offset', ignore it.
+    https://www.redmine.org/projects/redmine/wiki/Rest_Search
+    """
+    if args.get("search") is not None:
+        args.pop("limit", None)
+        args.pop("offset", None)
+
+    with_paginatation = args.get("limit") is not None and args.get("offset") is not None
+
+    output, error_ret = [], [] if not with_paginatation else {
+        "issue_list": [],
+        "page": util.get_pagination(0, args["limit"], args["offset"]),
+    }
+
     if util.is_dummy_project(project_id):
-        return []
+        return error_ret
     try:
         nx_project = NexusProject().set_project_id(project_id)
         nx_issue_params["nx_project"] = nx_project
-        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id  #??? 不太懂用途
+        plan_id = nx_project.get_project_row().plugin_relation.plan_project_id  # ??? 不太懂用途
     except NoResultFound:
         raise DevOpsError(
             404,
@@ -1301,6 +1325,7 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
             return []
     elif args.get("has_tag_issue", False):
         return []
+
     if len(default_filters.get("issue_id", "").split(",")) > 200:
         issue_ids = default_filters.pop("issue_id").split(",")
         default_filters_list = handle_exceed_limit_length_default_filter(default_filters, issue_ids, [])
@@ -1386,15 +1411,31 @@ def get_issue_list_by_project_helper(project_id, args, download=False, operator_
     if download:
         return output
 
-    if args.get("limit") is not None and args.get("offset") is not None:
+    if with_paginatation:
         page_dict = util.get_pagination(total_count, args["limit"], args["offset"])
         output = {"issue_list": output, "page": page_dict}
     return output
 
 
 def get_issue_list_by_user(user_id, args):
+    """
+    Due to the absence of a project ID filter in the Redmine /search API and
+    the potential length issue when retrieving all issues across all projects (resulting in an error due to URL length limit)
+    so if parameter has 'search' even it provides 'limit' 'offset', ignore it.
+    https://www.redmine.org/projects/redmine/wiki/Rest_Search
+    """
+    if args.get("search") is not None:
+        args.pop("limit", None)
+        args.pop("offset", None)
+
     nx_issue_params = defaultdict()
+    with_paginatation = args.get("limit") is not None and args.get("offset") is not None
     output = []
+    error_ret = (
+        []
+        if not with_paginatation
+        else {"issue_list": [], "page": util.get_pagination(0, args["limit"], args["offset"])}
+    )
     try:
         nx_user = nexus.nx_get_user_plugin_relation(user_id=user_id)
     except NoResultFound:
@@ -1409,10 +1450,10 @@ def get_issue_list_by_user(user_id, args):
     else:
         default_filters = get_custom_filters_by_args(args, user_id=nx_user.plan_user_id)
     if args.get("from") not in ["author_id", "assigned_to_id"]:
-        return []
+        return error_ret
     # default_filters 帶 search ，但沒有取得 issued_id，搜尋結果為空
     elif (args.get("search") and default_filters.get("issue_id") is None) or args.get("has_tag_issue", False):
-        return []
+        return error_ret
 
     if len(default_filters.get("issue_id", "").split(",")) > 200:
         issue_ids = default_filters.pop("issue_id").split(",")
@@ -1440,7 +1481,7 @@ def get_issue_list_by_user(user_id, args):
 
         total_count += all_issues.total_count
 
-    if args["limit"] and args["offset"] is not None:
+    if with_paginatation:
         page_dict = util.get_pagination(total_count, args["limit"], args["offset"])
         output = {"issue_list": output, "page": page_dict}
     return output
@@ -1827,14 +1868,14 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
                 if bool_no_due_date:
                     continue
                 else:
-                    df_check = dt_due_date['due_date'] > dt_due_date["now"]
+                    df_check = dt_due_date["due_date"] > dt_due_date["now"]
                     if df_check:
                         continue
             elif due_date == "normal":
                 if bool_no_due_date:
                     continue
                 else:
-                    df_check = dt_due_date['due_date'] < dt_due_date["now"]
+                    df_check = dt_due_date["due_date"] < dt_due_date["now"]
                     if df_check:
                         continue
         if issue.status.id in issue_status:
@@ -1844,12 +1885,12 @@ def calculate_issue_progress(filters, issue_status, output, args=None):
 
 
 def has_or_no_due_date(issue):
-    dt = dict (issue)
-    dt_due_date = {'due_date': None, 'now':None}
-    dt_due_date['due_date'] = dt['due_date']
-    dt_due_date['now'] = str(date.today())
-    bool_has_due_date = True if  dt_due_date['due_date'] is not None else False
-    bool_no_due_date = True if dt_due_date['due_date'] is None else False
+    dt = dict(issue)
+    dt_due_date = {"due_date": None, "now": None}
+    dt_due_date["due_date"] = dt["due_date"]
+    dt_due_date["now"] = str(date.today())
+    bool_has_due_date = True if dt_due_date["due_date"] is not None else False
+    bool_no_due_date = True if dt_due_date["due_date"] is None else False
     return dt_due_date, bool_has_due_date, bool_no_due_date
 
 
@@ -2386,15 +2427,19 @@ def delete_issue_relation(relation_id, user_account):
         broadcast=True,
     )
 
+
 def delete_issue_tag(tag_id: int) -> None:
-    all_issue = model.IssueTag.query.filter(model.IssueTag.tag_id != []) #.filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
+    all_issue = model.IssueTag.query.filter(
+        model.IssueTag.tag_id != []
+    )  # .filter(model.IssueTag.tag_id.in_())  .filter_by(issue_id=2381)
     for issue in all_issue:
         if tag_id in issue.tag_id:
             issue.tag_id.remove(tag_id)
-            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({'tag_id':issue.tag_id})
+            model.IssueTag.query.filter_by(issue_id=issue.issue_id).update({"tag_id": issue.tag_id})
             db.session.commit()
             sleep(0.5)
             continue
+
 
 def check_issue_closable(issue_id):
     # loop 離開標誌
@@ -2581,7 +2626,7 @@ class DownloadIssueAsExcel:
             logger.logger.info("Writing complete")
         except Exception as e:
             logger.logger.exception(str(e))
-            print('e = ', e)
+            print("e = ", e)
             self.__update_lock_download_issues(is_lock=False, sync_date=None)
 
     def __now_time(self):
@@ -2730,9 +2775,13 @@ class DumpByIssue(Resource):
 class IssueByUserV2(MethodResource):
     @jwt_required()
     def get(self, user_id, **kwargs):
-        print(kwargs)
+        with_paginatation = kwargs.get("limit") is not None and kwargs.get("offset") is not None
         if kwargs.get("search") is not None and len(kwargs["search"]) < 2:
-            output = []
+            output = (
+                []
+                if not with_paginatation
+                else {"issue_list": [], "page": util.get_pagination(0, kwargs["limit"], kwargs["offset"])}
+            )
         else:
             output = get_issue_list_by_user(user_id, kwargs)
         return util.success(output)
@@ -2757,9 +2806,13 @@ class IssueByUser(Resource):
         parser.add_argument("sort", type=str, location="args")
         parser.add_argument("tags", type=str, location="args")
         args = parser.parse_args()
-
+        with_paginatation = args.get("limit") is not None and args.get("offset") is not None
         if args.get("search") is not None and len(args["search"]) < 2:
-            output = []
+            output = (
+                []
+                if not with_paginatation
+                else {"issue_list": [], "page": util.get_pagination(0, args["limit"], args["offset"])}
+            )
         else:
             output = get_issue_list_by_user(user_id, args)
         return util.success(output)

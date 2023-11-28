@@ -35,9 +35,10 @@ from resources.issue import (
     find_head_and_close_issues,
     add_issue_watcher,
     remove_issue_watcher,
-    delete_issue_tag
+    delete_issue_tag,
 )
 from resources.system_parameter import check_upload_type
+
 # from resources.excalidraw import get_excalidraw_by_issue_id
 from resources import role
 from model import UserPluginRelation
@@ -665,13 +666,14 @@ class SyncIssueFamiliesV2(MethodResource):
     def post(self):
         return util.success(sync_issue_relation())
 
+
 class IssueWatcherV2(MethodResource):
     @doc(tags=["Issue"], description="Adding a issue watch to user.")
     @use_kwargs(router_model.WatcherIssueSchema, location="query")
     @jwt_required()
     def post(self, **kwargs):
-        user_id, issue_id = kwargs.get('user_id', get_jwt_identity()['user_id']), kwargs['issue_id']
-        rm_user_id = {'user_id': UserPluginRelation.query.filter_by(user_id=user_id).first().plan_user_id}
+        user_id, issue_id = kwargs.get("user_id", get_jwt_identity()["user_id"]), kwargs["issue_id"]
+        rm_user_id = {"user_id": UserPluginRelation.query.filter_by(user_id=user_id).first().plan_user_id}
         try:
             add_issue_watcher(issue_id, rm_user_id)
             all_watcher_info = get_user_issue_watcher_list()
@@ -686,17 +688,18 @@ class IssueWatcherV2(MethodResource):
                     set_user_issue_watcher_list(all_watcher_info)
         except Exception as e:
             logging.info(e)
-            
+
         return util.success()
+
 
 class IssueRemoveWatcher(MethodResource):
     @doc(tags=["Issue"], description="Remove a issue watcher from user.")
     @jwt_required()
     def delete(self, **kwargs):
-        user_id, issue_id = kwargs['user_id'], kwargs['issue_id']
+        user_id, issue_id = kwargs["user_id"], kwargs["issue_id"]
         rm_user_id = UserPluginRelation.query.filter_by(user_id=user_id).first().plan_user_id
         try:
-            remove_issue_watcher(issue_id,rm_user_id)
+            remove_issue_watcher(issue_id, rm_user_id)
             all_watcher_info = get_user_issue_watcher_list()
             user_watch_list = all_watcher_info.get(str(user_id), None)
             if user_watch_list is not None:
@@ -714,24 +717,29 @@ class WatchIssueByUser(MethodResource):
     @jwt_required()
     @use_kwargs(router_model.WatchIssueListSchema, location="query")
     def get(self, **kwargs):
-        output = []
+        with_paginatation = kwargs.get("limit") is not None and kwargs.get("offset") is not None
+        output, error_ret = [], [] if not with_paginatation else {
+            "issue_list": [],
+            "page": util.get_pagination(0, kwargs["limit"], kwargs["offset"]),
+        }
         nx_issue_params = defaultdict()
         all_watcher_info = get_user_issue_watcher_list()
         if not all_watcher_info:
             return util.success(output)
 
-        user_watch_list = all_watcher_info.setdefault(str(kwargs['user_id']), [])
+        user_watch_list = all_watcher_info.setdefault(str(kwargs["user_id"]), [])
         for issue in user_watch_list:
-            nx_issue_params['redmine_issue'] = redmine_lib.redmine.issue.get(issue)
+            nx_issue_params["redmine_issue"] = redmine_lib.redmine.issue.get(issue)
             issue = NexusIssue().set_redmine_issue_v2(**nx_issue_params).to_json()
             output.append(issue)
 
-        if kwargs.get('limit') and kwargs.get('offset') is not None:
+        if kwargs.get("limit") and kwargs.get("offset") is not None:
             page_dict = util.get_pagination(len(output), kwargs["limit"], kwargs["offset"])
             output = {"issue_list": output, "page": page_dict}
-            return util.success(output)
-            
+            return util.success(error_ret)
+
         return util.success(output)
+
 
 class IssueTag(MethodResource):
     @doc(tags=["Issue"], description="Delete specify issue tag.")
