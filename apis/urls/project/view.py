@@ -79,9 +79,7 @@ class CheckhasSonProject(Resource):
 class CheckhasRelationProjectV2(MethodResource):
     @jwt_required()
     def get(self, project_id):
-        has_father, has_child = project_has_parent(project_id), project_has_child(
-            project_id
-        )
+        has_father, has_child = project_has_parent(project_id), project_has_child(project_id)
         return {
             "has_relations": has_father or has_child,
             "has_father": has_father,
@@ -92,9 +90,7 @@ class CheckhasRelationProjectV2(MethodResource):
 class CheckhasRelationProject(Resource):
     @jwt_required()
     def get(self, project_id):
-        has_father, has_child = project_has_parent(project_id), project_has_child(
-            project_id
-        )
+        has_father, has_child = project_has_parent(project_id), project_has_child(project_id)
         return {
             "has_relations": has_father or has_child,
             "has_father": has_father,
@@ -153,9 +149,7 @@ class ProjectRelationV2(MethodResource):
     def get(self, project_id):
         return util.success(get_relation_list(project_id, []))
 
-    @doc(
-        tags=["Project"], description="Delete specific project and subproject relation"
-    )
+    @doc(tags=["Project"], description="Delete specific project and subproject relation")
     @use_kwargs(router_model.ProjectRelationDeleteSchema, location="form")
     @jwt_required()
     def delete(self, project_id, **kwargs):
@@ -189,20 +183,22 @@ class ProjectRelationsV2(MethodResource):
 @doc(tags=["Issue"], description="Get issue list by project")
 @use_kwargs(router_model.IssueByProjectSchema, location="query")
 @marshal_with(router_model.IssueByProjectResponse, code=200)
-@marshal_with(
-    router_model.IssueByProjectResponseWithPage, description="With Pagination"
-)
+@marshal_with(router_model.IssueByProjectResponseWithPage, description="With Pagination")
 class IssueByProjectV2(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id, "Error to get issue.")
         kwargs["project_id"] = project_id
+
+        with_paginatation = kwargs.get("limit") is not None and kwargs.get("offset") is not None
         if kwargs.get("search") is not None and len(kwargs["search"]) < 2:
-            output = []
-        else:
-            output = get_issue_list_by_project_helper(
-                project_id, kwargs, operator_id=get_jwt_identity()["user_id"]
+            output = (
+                []
+                if not with_paginatation
+                else {"issue_list": [], "page": util.get_pagination(0, kwargs["limit"], kwargs["offset"])}
             )
+        else:
+            output = get_issue_list_by_project_helper(project_id, kwargs, operator_id=get_jwt_identity()["user_id"])
         return util.success(output)
 
 
@@ -216,9 +212,7 @@ class IssueByProject(Resource):
         parser.add_argument("tracker_id", type=str, location="args")
         parser.add_argument("assigned_to_id", type=str, location="args")
         parser.add_argument("priority_id", type=str, location="args")
-        parser.add_argument(
-            "only_superproject_issues", type=bool, default=False, location="args"
-        )
+        parser.add_argument("only_superproject_issues", type=bool, default=False, location="args")
         parser.add_argument("limit", type=int, location="args")
         parser.add_argument("offset", type=int, location="args")
         parser.add_argument("search", type=str, location="args")
@@ -233,12 +227,15 @@ class IssueByProject(Resource):
         parser.add_argument("expired_days", type=int, default=1, location="args")
         args = parser.parse_args()
         args["project_id"] = project_id
+        with_paginatation = args.get("limit") is not None and args.get("offset") is not None
         if args.get("search") is not None and len(args["search"]) < 2:
-            output = []
-        else:
-            output = get_issue_list_by_project_helper(
-                project_id, args, operator_id=get_jwt_identity()["user_id"]
+            output = (
+                []
+                if not with_paginatation
+                else {"issue_list": [], "page": util.get_pagination(0, args["limit"], args["offset"])}
             )
+        else:
+            output = get_issue_list_by_project_helper(project_id, args, operator_id=get_jwt_identity()["user_id"])
         return util.success(output)
 
 
@@ -283,9 +280,7 @@ class IssuesProgressByProjectV2(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id)
-        output = get_issue_progress_or_statistics_by_project(
-            project_id, kwargs, progress=True
-        )
+        output = get_issue_progress_or_statistics_by_project(project_id, kwargs, progress=True)
         return util.success(output)
 
 
@@ -297,9 +292,7 @@ class IssuesProgressByProject(Resource):
         parser.add_argument("fixed_version_id", type=int, location="args")
         parser.add_argument("due_date_status", type=str, location="args")
         args = parser.parse_args()
-        output = get_issue_progress_or_statistics_by_project(
-            project_id, args, progress=True
-        )
+        output = get_issue_progress_or_statistics_by_project(project_id, args, progress=True)
         return util.success(output)
 
 
@@ -310,9 +303,7 @@ class IssuesStatisticsByProjectV2(MethodResource):
     @jwt_required()
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id)
-        output = get_issue_progress_or_statistics_by_project(
-            project_id, kwargs, statistics=True
-        )
+        output = get_issue_progress_or_statistics_by_project(project_id, kwargs, statistics=True)
         return util.success(output)
 
 
@@ -324,9 +315,7 @@ class IssuesStatisticsByProject(Resource):
         parser.add_argument("fixed_version_id", type=int, location="args")
         parser.add_argument("due_date_status", type=str, location="args")
         args = parser.parse_args()
-        output = get_issue_progress_or_statistics_by_project(
-            project_id, args, statistics=True
-        )
+        output = get_issue_progress_or_statistics_by_project(project_id, args, statistics=True)
         return util.success(output)
 
 
@@ -353,9 +342,7 @@ class IssueFilterByProjectV2(MethodResource):
     @marshal_with(router_model.IssueFilterByProjectGetResponse)
     @jwt_required()
     def get(self, project_id):
-        return util.success(
-            get_custom_issue_filter(get_jwt_identity()["user_id"], project_id)
-        )
+        return util.success(get_custom_issue_filter(get_jwt_identity()["user_id"], project_id))
 
     @doc(tags=["Project"], description="Create project's issues' filter.")
     @use_kwargs(router_model.IssueFilterByProjectPostAndPutSchema, location="form")
@@ -399,9 +386,7 @@ class IssueFilterByProjectWithFilterIDV2(MethodResource):
                 error=apiError.argument_error("focus_tab"),
             )
 
-        return util.success(
-            put_custom_issue_filter(custom_filter_id, project_id, kwargs)
-        )
+        return util.success(put_custom_issue_filter(custom_filter_id, project_id, kwargs))
 
     @doc(tags=["Project"], description="Delete project's issues' filter.")
     @jwt_required()
@@ -413,9 +398,7 @@ class IssueFilterByProjectWithFilterIDV2(MethodResource):
 class IssueFilterByProject(Resource):
     @jwt_required()
     def get(self, project_id):
-        return util.success(
-            get_custom_issue_filter(get_jwt_identity()["user_id"], project_id)
-        )
+        return util.success(get_custom_issue_filter(get_jwt_identity()["user_id"], project_id))
 
     @jwt_required()
     def post(self, project_id):
@@ -558,9 +541,7 @@ class DownloadProject(Resource):
             return util.success("previous is still running")
 
         # Because QA not the member of any project, so it will get error when it get issue by user_id.
-        user_id = (
-            get_jwt_identity()["user_id"] if get_jwt_identity()["role_id"] != 7 else 1
-        )
+        user_id = get_jwt_identity()["user_id"] if get_jwt_identity()["role_id"] != 7 else 1
 
         download_issue_excel = DownloadIssueAsExcel(args, project_id, user_id)
         threading.Thread(target=download_issue_excel.execute).start()
@@ -596,19 +577,11 @@ class ListMyProjectsV2(MethodResource):
             disabled = kwargs["disabled"] == 1
         if kwargs.get("simple", "false") == "true":
             return util.success(
-                {
-                    "project_list": project.get_project_list(
-                        get_jwt_identity()["user_id"], "simple", kwargs, disabled
-                    )
-                }
+                {"project_list": project.get_project_list(get_jwt_identity()["user_id"], "simple", kwargs, disabled)}
             )
         else:
             return util.success(
-                {
-                    "project_list": project.get_project_list(
-                        get_jwt_identity()["user_id"], "pm", kwargs, disabled
-                    )
-                }
+                {"project_list": project.get_project_list(get_jwt_identity()["user_id"], "pm", kwargs, disabled)}
             )
 
 
@@ -635,19 +608,11 @@ class ListMyProjects(Resource):
             disabled = args["disabled"] == 1
         if args.get("simple", "false") == "true":
             return util.success(
-                {
-                    "project_list": project.get_project_list(
-                        get_jwt_identity()["user_id"], "simple", args, disabled
-                    )
-                }
+                {"project_list": project.get_project_list(get_jwt_identity()["user_id"], "simple", args, disabled)}
             )
         else:
             return util.success(
-                {
-                    "project_list": project.get_project_list(
-                        get_jwt_identity()["user_id"], "pm", args, disabled
-                    )
-                }
+                {"project_list": project.get_project_list(get_jwt_identity()["user_id"], "pm", args, disabled)}
             )
 
 
@@ -658,11 +623,7 @@ class ListSimpleProjectsV2(MethodResource):
     @jwt_required()
     def get(self):
         args = {"is_lock": False}
-        return util.success(
-            project.get_project_simple_list(
-                get_jwt_identity()["user_id"], args, disable=False
-            )
-        )
+        return util.success(project.get_project_simple_list(get_jwt_identity()["user_id"], args, disable=False))
 
 
 @doc(tags=["Project"], description="List projects calculated issues count")
@@ -674,11 +635,7 @@ class CalculateProjectIssuesV2(MethodResource):
         project_ids = kwargs.get("project_ids").split(",")
 
         return util.success(
-            {
-                "project_list": project.get_project_issue_calculation(
-                    get_jwt_identity()["user_id"], project_ids
-                )
-            }
+            {"project_list": project.get_project_issue_calculation(get_jwt_identity()["user_id"], project_ids)}
         )
 
 
@@ -691,11 +648,7 @@ class CalculateProjectIssues(Resource):
         project_ids = args.get("project_ids").split(",")
 
         return util.success(
-            {
-                "project_list": project.get_project_issue_calculation(
-                    get_jwt_identity()["user_id"], project_ids
-                )
-            }
+            {"project_list": project.get_project_issue_calculation(get_jwt_identity()["user_id"], project_ids)}
         )
 
 
@@ -744,9 +697,7 @@ class SingleProjectV2(MethodResource):
         role.require_pm("Error while updating project info.", exclude_qa=True)
         role.require_in_project(project_id, "Error while updating project info.")
         project.check_project_args_patterns(kwargs)
-        project.check_project_owner_id(
-            kwargs["owner_id"], get_jwt_identity()["user_id"], project_id
-        )
+        project.check_project_owner_id(kwargs["owner_id"], get_jwt_identity()["user_id"], project_id)
         project.pm_update_project(project_id, kwargs)
         return util.success()
 
@@ -759,9 +710,7 @@ class SingleProjectV2(MethodResource):
         role.require_in_project(project_id, "Error while updating project info.")
         project.check_project_args_patterns(kwargs)
         if kwargs.get("owner_id", None) is not None:
-            project.check_project_owner_id(
-                kwargs["owner_id"], get_jwt_identity()["user_id"], project_id
-            )
+            project.check_project_owner_id(kwargs["owner_id"], get_jwt_identity()["user_id"], project_id)
         project.nexus_update_project(project_id, kwargs)
         return util.success()
 
@@ -773,9 +722,7 @@ class SingleProjectV2(MethodResource):
         role.require_in_project(project_id)
         role_id = get_jwt_identity()["role_id"]
         user_id = get_jwt_identity()["user_id"]
-        if role_id == role.QA.id and not bool(
-            model.Project.query.filter_by(id=project_id, creator_id=user_id).count()
-        ):
+        if role_id == role.QA.id and not bool(model.Project.query.filter_by(id=project_id, creator_id=user_id).count()):
             raise apiError.NotAllowedError("Error while deleting project.")
         parser = reqparse.RequestParser()
         parser.add_argument("force_delete_project", type=bool, location="args")
@@ -822,16 +769,10 @@ class SingleProject(Resource):
         parser.add_argument("parent_id", type=str)
         parser.add_argument("is_inheritance_member", type=bool)
         args = parser.parse_args()
-        args = {
-            key: value
-            for key, value in args.items()
-            if value is not None or key == "description"
-        }
+        args = {key: value for key, value in args.items() if value is not None or key == "description"}
 
         project.check_project_args_patterns(args)
-        project.check_project_owner_id(
-            args["owner_id"], get_jwt_identity()["user_id"], project_id
-        )
+        project.check_project_owner_id(args["owner_id"], get_jwt_identity()["user_id"], project_id)
         project.pm_update_project(project_id, args)
         return util.success()
 
@@ -844,9 +785,7 @@ class SingleProject(Resource):
         args = parser.parse_args()
         project.check_project_args_patterns(args)
         if args.get("owner_id", None) is not None:
-            project.check_project_owner_id(
-                args["owner_id"], get_jwt_identity()["user_id"], project_id
-            )
+            project.check_project_owner_id(args["owner_id"], get_jwt_identity()["user_id"], project_id)
         project.nexus_update_project(project_id, args)
         return util.success()
 
@@ -856,9 +795,7 @@ class SingleProject(Resource):
         role.require_in_project(project_id)
         role_id = get_jwt_identity()["role_id"]
         user_id = get_jwt_identity()["user_id"]
-        if role_id == role.QA.id and not bool(
-            model.Project.query.filter_by(id=project_id, creator_id=user_id).count()
-        ):
+        if role_id == role.QA.id and not bool(model.Project.query.filter_by(id=project_id, creator_id=user_id).count()):
             raise apiError.NotAllowedError("Error while deleting project.")
         return project.delete_project(project_id)
 
@@ -953,9 +890,7 @@ class ProjectUserListV2(MethodResource):
     @marshal_with(router_model.ProjectUserListResponse)
     @jwt_required()
     def get(self, project_id, **kwargs):
-        return util.success(
-            {"user_list": user.user_list_by_project(project_id, kwargs)}
-        )
+        return util.success({"user_list": user.user_list_by_project(project_id, kwargs)})
 
 
 class ProjectUserList(Resource):
@@ -1028,16 +963,12 @@ class ProjectFileV2(MethodResource):
 
         plan_operator_id = None
         if get_jwt_identity()["user_id"] is not None:
-            operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-                user_id=get_jwt_identity()["user_id"]
-            )
+            operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=get_jwt_identity()["user_id"])
             plan_operator_id = operator_plugin_relation.plan_user_id
         kwargs["file"] = kwargs.pop("upload_file")
         file = kwargs["file"]
         if file is None:
-            raise DevOpsError(
-                400, "No file is sent.", error=apiError.argument_error("file")
-            )
+            raise DevOpsError(400, "No file is sent.", error=apiError.argument_error("file"))
         from resources.system_parameter import check_upload_type
 
         check_upload_type(file)
@@ -1071,25 +1002,19 @@ class ProjectFile(Resource):
                 error=apiError.project_not_found(project_id),
             )
         parser = reqparse.RequestParser()
-        parser.add_argument(
-            "file", type=werkzeug.datastructures.FileStorage, location="files"
-        )
+        parser.add_argument("file", type=werkzeug.datastructures.FileStorage, location="files")
         parser.add_argument("filename", type=str, location="form")
         parser.add_argument("version_id", type=str, location="form")
         parser.add_argument("description", type=str, location="form")
         args = parser.parse_args()
         plan_operator_id = None
         if get_jwt_identity()["user_id"] is not None:
-            operator_plugin_relation = nexus.nx_get_user_plugin_relation(
-                user_id=get_jwt_identity()["user_id"]
-            )
+            operator_plugin_relation = nexus.nx_get_user_plugin_relation(user_id=get_jwt_identity()["user_id"])
             plan_operator_id = operator_plugin_relation.plan_user_id
 
         file = args["file"]
         if file is None:
-            raise DevOpsError(
-                400, "No file is sent.", error=apiError.argument_error("file")
-            )
+            raise DevOpsError(400, "No file is sent.", error=apiError.argument_error("file"))
         from resources.system_parameter import check_upload_type
 
         check_upload_type(file)
@@ -1139,9 +1064,7 @@ class ProjectVersionListV2(MethodResource):
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id)
         return util.success(
-            version.get_version_list_by_project(
-                project_id, kwargs.get("status"), kwargs.get("force_id")
-            )
+            version.get_version_list_by_project(project_id, kwargs.get("status"), kwargs.get("force_id"))
         )
 
 
@@ -1153,11 +1076,7 @@ class ProjectVersionList(Resource):
         root_parser.add_argument("status", type=str, location="args")
         root_parser.add_argument("force_id", type=str, location="args")
         root_args = root_parser.parse_args()
-        return util.success(
-            version.get_version_list_by_project(
-                project_id, root_args["status"], root_args["force_id"]
-            )
-        )
+        return util.success(version.get_version_list_by_project(project_id, root_args["status"], root_args["force_id"]))
 
 
 class ProjectVersionPostV2(MethodResource):
@@ -1254,9 +1173,7 @@ class ProjectWikiV2(MethodResource):
     @jwt_required()
     def put(self, project_id, wiki_name, **kwargs):
         role.require_in_project(project_id)
-        return wiki.put_wiki_by_project(
-            project_id, wiki_name, kwargs, get_jwt_identity()["user_id"]
-        )
+        return wiki.put_wiki_by_project(project_id, wiki_name, kwargs, get_jwt_identity()["user_id"])
 
     @doc(tags=["Project"], description="Delete project wiki info by wiki name")
     @marshal_with(util.CommonResponse)
@@ -1278,9 +1195,7 @@ class ProjectWiki(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("wiki_text", type=str, required=True)
         args = parser.parse_args()
-        return wiki.put_wiki_by_project(
-            project_id, wiki_name, args, get_jwt_identity()["user_id"]
-        )
+        return wiki.put_wiki_by_project(project_id, wiki_name, args, get_jwt_identity()["user_id"])
 
     @jwt_required()
     def delete(self, project_id, wiki_name):
@@ -1338,9 +1253,7 @@ class ReleasesV2(MethodResource):
     def get(self, project_id, **kwargs):
         role.require_in_project(project_id, "Error to get release")
         try:
-            return util.success(
-                {"releases": release.get_releases_by_project_id(project_id, kwargs)}
-            )
+            return util.success({"releases": release.get_releases_by_project_id(project_id, kwargs)})
         except NoResultFound:
             return util.respond(404, release.error_redmine_issues_closed)
 
@@ -1358,31 +1271,19 @@ class ReleaseV2(MethodResource):
     @doc(tags=["Release"], description="Get release info by release_name.")
     @jwt_required()
     def get(self, project_id, release_name):
-        plugin_relation = model.ProjectPluginRelation.query.filter_by(
-            project_id=project_id
-        ).first()
+        plugin_relation = model.ProjectPluginRelation.query.filter_by(project_id=project_id).first()
         try:
-            gl_release = gitlab.gl_get_release(
-                plugin_relation.git_repository_id, release_name
-            )
-            rm_list_versions = (
-                redmine.rm_get_version_list(plugin_relation.plan_project_id),
-            )
-            rm_key_versions = release.transfer_array_to_object(
-                rm_list_versions[0]["versions"], "name"
-            )
+            gl_release = gitlab.gl_get_release(plugin_relation.git_repository_id, release_name)
+            rm_list_versions = (redmine.rm_get_version_list(plugin_relation.plan_project_id),)
+            rm_key_versions = release.transfer_array_to_object(rm_list_versions[0]["versions"], "name")
             if release_name not in rm_key_versions:
                 return util.success({})
-            return util.success(
-                {"gitlab": gl_release, "redmine": rm_key_versions[release_name]}
-            )
+            return util.success({"gitlab": gl_release, "redmine": rm_key_versions[release_name]})
         except NoResultFound:
             return util.respond(
                 404,
                 release.error_gitlab_not_found,
-                error=apiError.repository_id_not_found(
-                    plugin_relation.git_repository_id
-                ),
+                error=apiError.repository_id_not_found(plugin_relation.git_repository_id),
             )
 
 
@@ -1432,6 +1333,4 @@ class ProjectResourceStorage(MethodResource):
     @marshal_with(util.CommonResponse)
     @jwt_required()
     def patch(self, project_id, **kwargs):
-        return util.success(
-            update_project_resource_storage_level(project_id, args=kwargs)
-        )
+        return util.success(update_project_resource_storage_level(project_id, args=kwargs))
