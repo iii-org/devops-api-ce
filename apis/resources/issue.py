@@ -579,6 +579,8 @@ def __deal_with_issue_redmine_output(redmine_output, closed_status=None):
                 "name": user_info.name,
                 "login": user_info.login,
             }
+    else:
+        redmine_output["assigned_to"] = {}
     if "author" in redmine_output:
         user_info = user.get_user_id_name_by_plan_user_id(redmine_output["author"]["id"])
         if user_info is not None:
