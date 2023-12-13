@@ -11,7 +11,6 @@ import uuid
 from typing import Optional
 
 from accessories import redmine_lib
-from flask import send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from sqlalchemy import desc, or_
