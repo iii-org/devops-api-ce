@@ -1,0 +1,6 @@
+projectKey=test-1213-1
+serverUrl=http://10.20.2.105:31910
+serverVersion=8.9.7.52159
+dashboardUrl=http://10.20.2.105:31910/dashboard?id=test-1213-1
+ceTaskId=AYxiJ8Hh7TZjPr9Teuiz
+ceTaskUrl=http://10.20.2.105:31910/api/ce/task?id=AYxiJ8Hh7TZjPr9Teuiz

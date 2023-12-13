@@ -27,7 +27,7 @@ METRICS = (
     ",duplicated_blocks,duplicated_lines_density"
 )
 PAGE_SIZE = 1000
-SONAR_SCAN_PATH = "sonar-scanner-4.8.0/bin"
+SONAR_SCAN_PATH = "sonar-scanner-5.0.1/bin"
 # ./sonar-scanner -Dsonar.host.url='{config.get("SONARQUBE_EXTERNAL_BASE_URL")}' -Dsonar.login='{config.get("SONARQUBE_ADMIN_TOKEN")}' -Dsonar.projectKey='projectkey' -Dsonar.projectName='projectnewname'
 
 

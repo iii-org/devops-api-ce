@@ -745,18 +745,6 @@ def pm_update_project(project_id, args):
         sonar_login = 'sonar.login="' + sonar_token + '"'
         sonar_projectkey = 'sonar.projectKey="' + project_key + '"'
         sonar_projectname = 'sonar.projectName="' + project_name + '"'
-        # sonar_rename = (
-        #     ".\\sonar-scanner -D "
-        #     + sonar_host
-        #     + " -D "
-        #     + sonar_login
-        #     + " -D "
-        #     + sonar_projectkey
-        #     + " -D "
-        #     + sonar_projectname
-        # )
-        # os.system("cd " + sonarqube.SONAR_SCAN_PATH + " && " + sonar_rename)
-        # 以上為 WINDOWS 環境的執行指令，以下為 LINUX 的執行執令
         sonar_rename = (
             "./sonar-scanner -D"
             + sonar_host
