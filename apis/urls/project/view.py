@@ -929,7 +929,7 @@ class AllReportsV2(MethodResource):
         role.require_in_project(project_id)
         return send_file(
             project.get_all_reports(project_id),
-            attachment_filename="reports.zip",
+            download_name="reports.zip",
             as_attachment=True,
         )
 
@@ -941,7 +941,7 @@ class AllReports(Resource):
         role.require_in_project(project_id)
         return send_file(
             project.get_all_reports(project_id),
-            attachment_filename="reports.zip",
+            download_name="reports.zip",
             as_attachment=True,
         )
 

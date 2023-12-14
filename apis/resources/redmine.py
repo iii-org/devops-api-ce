@@ -432,7 +432,7 @@ class Redmine:
         try:
             r = self.__api_get("/attachments/download/{0}/{1}".format(a_id, filename), resp_format="")
             file_obj = BytesIO(r.content)
-            return send_file(file_obj, attachment_filename=filename)
+            return send_file(file_obj, download_name=filename)
         except Exception as e:
             raise DevOpsError(
                 500,
