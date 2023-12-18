@@ -101,7 +101,9 @@ def commit_id_to_url(project_id, commit_id):
     project_query = model.Project.query.filter_by(id=project_id).one()
     if config.get("GITLAB_EXTERNAL_BASE_URL") is not None:
         project_name = project_query.name
-        git_repo_url = f'{config.get("GITLAB_EXTERNAL_BASE_URL")}/{config.get("GITLAB_ADMIN_ACCOUNT") or "root"}/{project_name}'
+        git_repo_url = (
+            f'{config.get("GITLAB_EXTERNAL_BASE_URL")}/{config.get("GITLAB_ADMIN_ACCOUNT") or "root"}/{project_name}'
+        )
     else:
         git_repo_url = project_query.http_url[0:-4]
     return f"{git_repo_url}/-/commit/{commit_id}"
@@ -176,14 +178,10 @@ class GitLab(object):
         return self.__api_request("GET", path, params=params, headers=headers)
 
     def __api_post(self, path, params=None, headers=None, data=None):
-        return self.__api_request(
-            "POST", path, headers=headers, data=data, params=params
-        )
+        return self.__api_request("POST", path, headers=headers, data=data, params=params)
 
     def __api_put(self, path, params=None, headers=None, data=None):
-        return self.__api_request(
-            "PUT", path, headers=headers, data=data, params=params
-        )
+        return self.__api_request("PUT", path, headers=headers, data=data, params=params)
 
     def __api_delete(self, path, params=None, headers=None):
         return self.__api_request("DELETE", path, params=params, headers=headers)
@@ -217,9 +215,7 @@ class GitLab(object):
         group_name = kwargs.pop("group_name", DEFAULT_REPO)
         group_info = self.gl_get_specific_namespace(group_name)
         if not group_info:
-            return self.gl_create_project(
-                {"name": kwargs["name"], "description": kwargs["description"]}
-            )
+            return self.gl_create_project({"name": kwargs["name"], "description": kwargs["description"]})
         return self.gl_create_project(
             {
                 "name": kwargs["name"],
@@ -239,9 +235,7 @@ class GitLab(object):
         return self.__api_delete(f"/projects/{repo_id}")
 
     def gl_create_group(self, group_name):
-        return self.__api_post(
-            f"/groups", params={"name": group_name, "path": group_name}
-        ).json()
+        return self.__api_post(f"/groups", params={"name": group_name, "path": group_name}).json()
 
     def gl_group_add_maintainer(self, group_id, user_id):
         return self.__api_post(
@@ -332,9 +326,7 @@ class GitLab(object):
         i = 1
         while i <= total_pages:
             params = {"per_page": 25, "page": i}
-            output = self.__api_get(
-                f"/projects/{repo_id}/repository/branches", params=params
-            )
+            output = self.__api_get(f"/projects/{repo_id}/repository/branches", params=params)
             if output.status_code != 200:
                 raise DevOpsError(
                     output.status_code,
@@ -353,9 +345,7 @@ class GitLab(object):
                 "last_commit_time": branch_info["commit"]["committed_date"],
                 "short_id": branch_info["commit"]["short_id"][0:7],
                 "id": branch_info["commit"]["id"],
-                "commit_url": commit_id_to_url(
-                    get_nexus_project_id(repo_id), branch_info["commit"]["short_id"]
-                ),
+                "commit_url": commit_id_to_url(get_nexus_project_id(repo_id), branch_info["commit"]["short_id"]),
                 "created_at": branch_info["commit"]["created_at"],
             }
             branch_list.append(branch)
@@ -373,9 +363,7 @@ class GitLab(object):
         return output.json()
 
     def gl_delete_branch(self, project_id, branch):
-        output = self.__api_delete(
-            f"/projects/{project_id}/repository/branches/{branch}"
-        )
+        output = self.__api_delete(f"/projects/{project_id}/repository/branches/{branch}")
         return output
 
     def gl_list_protect_branches(self, project_id):
@@ -383,15 +371,11 @@ class GitLab(object):
         return output.json()
 
     def gl_unprotect_branch(self, project_id, branch):
-        output = self.__api_delete(
-            f"/projects/{project_id}/protected_branches/{branch}"
-        )
+        output = self.__api_delete(f"/projects/{project_id}/protected_branches/{branch}")
         return output
 
     def gl_get_repository_tree(self, repo_id, branch):
-        output = self.__api_get(
-            f"/projects/{repo_id}/repository/tree", params={"ref": branch}
-        )
+        output = self.__api_get(f"/projects/{repo_id}/repository/tree", params={"ref": branch})
         return {"file_list": output.json()}
 
     def gl_get_storage_usage(self, repo_id):
@@ -426,9 +410,7 @@ class GitLab(object):
             raise DevOpsError(
                 500,
                 "Only accept POST and PUT.",
-                error=apiError.invalid_code_path(
-                    "Only PUT and POST is allowed, but" f"{method} provided."
-                ),
+                error=apiError.invalid_code_path("Only PUT and POST is allowed, but" f"{method} provided."),
             )
 
         if output.status_code == 201:
@@ -452,9 +434,7 @@ class GitLab(object):
         return self.__edit_file_exec("PUT", repo_id, args)
 
     def gl_get_file(self, repo_id, branch, file_path):
-        output = self.__api_get(
-            f"/projects/{repo_id}/repository/files/{file_path}", params={"ref": branch}
-        )
+        output = self.__api_get(f"/projects/{repo_id}/repository/files/{file_path}", params={"ref": branch})
         return util.success(
             {
                 "file_name": output.json()["file_name"],
@@ -533,9 +513,7 @@ class GitLab(object):
 
         return _result
 
-    def create_tag(
-        self, repo_id: Union[int, str], tag_name: str, ref: str, message: str = None
-    ):
+    def create_tag(self, repo_id: Union[int, str], tag_name: str, ref: str, message: str = None):
         """
         替 GitLab commit 建立新 tag
         src: https://docs.gitlab.com/ee/api/tags.html#create-a-new-tag
@@ -557,9 +535,7 @@ class GitLab(object):
         if message:
             params["message"] = message
 
-        return self.__api_post(
-            f"/projects/{repo_id}/repository/tags", params=params
-        ).json()
+        return self.__api_post(f"/projects/{repo_id}/repository/tags", params=params).json()
 
     def delete_tag(self, repo_id: Union[int, str], tag_name: str):
         """
@@ -700,6 +676,8 @@ class GitLab(object):
                         "timestamp": commit["committed_date"],
                     },
                     "subject": commit["title"],
+                    "message": commit["message"],
+                    "web_url": commit.get("web_url", ""),
                 }
             )
 
@@ -710,9 +688,7 @@ class GitLab(object):
 
     def gl_create_access_token(self, user_id):
         data = {"name": "IIIDevops Helm source code analysis", "scopes": ["read_api"]}
-        return self.__api_post(
-            f"/users/{user_id}/impersonation_tokens", data=data
-        ).json()["token"]
+        return self.__api_post(f"/users/{user_id}/impersonation_tokens", data=data).json()["token"]
 
     # Get Gitlab list releases
     def gl_list_releases(self, repo_id):
@@ -737,15 +713,11 @@ class GitLab(object):
         return self.__api_post(path).json()
 
     def single_commit(self, project_id, commit_id):
-        return self.__api_get(
-            f"/projects/{project_id}/repository/commits/{commit_id}"
-        ).json()
+        return self.__api_get(f"/projects/{project_id}/repository/commits/{commit_id}").json()
 
     def __get_projects_commit(self, pjs, out_list, branch_name, days_ago):
         for pj in pjs:
-            if (pj.empty_repo is False) and pj.path_with_namespace.split("/")[
-                0
-            ] not in iiidevops_system_group:
+            if (pj.empty_repo is False) and pj.path_with_namespace.split("/")[0] not in iiidevops_system_group:
                 if branch_name is None:
                     pj_commits = pj.commits.list(since=days_ago)
                 else:
@@ -756,9 +728,7 @@ class GitLab(object):
                             "pj_name": pj.name,
                             "author_name": commit.author_name,
                             "author_email": commit.author_email,
-                            "commit_time": self.__gl_timezone_to_utc(
-                                commit.committed_date
-                            ),
+                            "commit_time": self.__gl_timezone_to_utc(commit.committed_date),
                             "commit_id": commit.short_id,
                             "commit_title": commit.title,
                             "commit_message": commit.message,
@@ -775,20 +745,16 @@ class GitLab(object):
                 db.session.query(model.ProjectUserRole, model.ProjectPluginRelation)
                 .join(
                     model.ProjectPluginRelation,
-                    model.ProjectPluginRelation.project_id
-                    == model.ProjectUserRole.project_id,
+                    model.ProjectPluginRelation.project_id == model.ProjectUserRole.project_id,
                 )
                 .filter(
                     model.ProjectUserRole.user_id == user_id,
-                    model.ProjectUserRole.project_id
-                    == model.ProjectPluginRelation.project_id,
+                    model.ProjectUserRole.project_id == model.ProjectPluginRelation.project_id,
                 )
                 .all()
             )
             for row in rows:
-                pjs.append(
-                    self.gl.projects.get(row.ProjectPluginRelation.git_repository_id)
-                )
+                pjs.append(self.gl.projects.get(row.ProjectPluginRelation.git_repository_id))
         else:
             pjs = self.gl.projects.list(order_by="last_activity_at")
         return pjs
@@ -809,9 +775,7 @@ class GitLab(object):
                 out_list = []
                 days_ago = (datetime.utcnow() - timedelta(days=x)).isoformat()
                 pjs = self.__get_projects_by_repo_or_by_user(git_repository_id, user_id)
-                out_list = self.__get_projects_commit(
-                    pjs, out_list, branch_name, days_ago
-                )
+                out_list = self.__get_projects_commit(pjs, out_list, branch_name, days_ago)
                 if len(out_list) > show_commit_rows - 1:
                     return out_list[:show_commit_rows]
             return out_list[:show_commit_rows]
@@ -832,25 +796,16 @@ class GitLab(object):
                 if pj.empty_repo is False:
                     try:
                         the_last_data = (
-                            GitCommitNumberEachDays.query.filter(
-                                GitCommitNumberEachDays.repo_id == pj.id
-                            )
+                            GitCommitNumberEachDays.query.filter(GitCommitNumberEachDays.repo_id == pj.id)
                             .order_by(GitCommitNumberEachDays.id.desc())
                             .first()
                         )
-                        if (
-                            the_last_data is not None
-                            and the_last_data.total_commit_number is not None
-                        ):
-                            the_last_time_total_commit_number = (
-                                the_last_data.total_commit_number
-                            )
+                        if the_last_data is not None and the_last_data.total_commit_number is not None:
+                            the_last_time_total_commit_number = the_last_data.total_commit_number
                     except NoResultFound:
                         pass
                     total_commit_number = len(pj.commits.list(all=True))
-                    commit_number = (
-                        total_commit_number - the_last_time_total_commit_number
-                    )
+                    commit_number = total_commit_number - the_last_time_total_commit_number
                     if commit_number < 0:
                         commit_number = 0
                 now_time = datetime.utcnow() + timedelta(hours=timezone_hours_number)
@@ -900,9 +855,7 @@ class GitLab(object):
     def gl_create_file(self, pj, file_path, file_name, local_file_path, branch=""):
         branch = branch if branch else pj.default_branch
         with open(f"{local_file_path}/{file_name}", "r") as f:
-            content = base64.b64encode(bytes(f.read(), encoding="utf-8")).decode(
-                "utf-8"
-            )
+            content = base64.b64encode(bytes(f.read(), encoding="utf-8")).decode("utf-8")
             pj.files.create(
                 {
                     "file_path": file_path,
@@ -933,20 +886,14 @@ class GitLab(object):
         """
         fallback_message: str = "Add or update files\n\n"
         for file in files:
-            if not (
-                file.get("action", False)
-                and file.get("file_path", False)
-                and file.get("content", False)
-            ):
+            if not (file.get("action", False) and file.get("file_path", False) and file.get("content", False)):
                 raise apiError.DevOpsError(
                     400,
                     "Error when create multiple file commit.",
                     error=f"{file} missing required parameter.",
                 )
             path: Path = Path(file["file_path"])
-            fallback_message += (
-                f"- {file['action'].capitalize()} {path.stem}{path.suffix}\n"
-            )
+            fallback_message += f"- {file['action'].capitalize()} {path.stem}{path.suffix}\n"
 
         data = {
             "branch": branch if branch else project.default_branch,
@@ -971,9 +918,7 @@ class GitLab(object):
 
     def list_pj_commits_and_wirte_in_file(self):
         # Check this process is active or not
-        git_commit_history = SystemParameter.query.filter_by(
-            name="git_commit_history"
-        ).one()
+        git_commit_history = SystemParameter.query.filter_by(name="git_commit_history").one()
         if not git_commit_history.active:
             return
 
@@ -989,10 +934,7 @@ class GitLab(object):
         # Remove existed more than keep days' files
         for pj_folder in os.listdir(base_path):
             for commit_file in os.listdir(f"{base_path}/{pj_folder}"):
-                if (
-                    commit_file.split(".")[0]
-                    < str(util.get_certain_date_from_now(keep_days))[:10]
-                ):
+                if commit_file.split(".")[0] < str(util.get_certain_date_from_now(keep_days))[:10]:
                     os.remove(f"{base_path}/{pj_folder}/{commit_file}")
             if os.listdir(f"{base_path}/{pj_folder}") == []:
                 os.rmdir(f"{base_path}/{pj_folder}")
@@ -1068,31 +1010,21 @@ class GitLab(object):
         return self.__api_get(f"/projects/{repo_id}/pipelines/{pipeline_id}").json()
 
     def gl_get_pipeline_console(self, repo_id: int, job_id: int):
-        return self.__api_get(
-            f"/projects/{repo_id}/jobs/{job_id}/trace"
-        ).content.decode("utf-8")
+        return self.__api_get(f"/projects/{repo_id}/jobs/{job_id}/trace").content.decode("utf-8")
 
     def gl_rerun_pipeline_job(self, repo_id: int, pipeline_id: int):
-        return self.__api_post(
-            f"/projects/{repo_id}/pipelines/{pipeline_id}/retry"
-        ).json()
+        return self.__api_post(f"/projects/{repo_id}/pipelines/{pipeline_id}/retry").json()
 
     def gl_create_pipeline(self, repo_id: int, branch: str):
         return self.__api_post(f"/projects/{repo_id}/pipeline", {"ref": branch}).json()
 
     def gl_stop_pipeline_job(self, repo_id: int, pipeline_id: int):
-        return self.__api_post(
-            f"/projects/{repo_id}/pipelines/{pipeline_id}/cancel"
-        ).json()
+        return self.__api_post(f"/projects/{repo_id}/pipelines/{pipeline_id}/cancel").json()
 
     def gl_pipeline_jobs(self, repo_id: int, pipeline_id: int) -> dict[str, Any]:
-        return self.__api_get(
-            f"/projects/{repo_id}/pipelines/{pipeline_id}/jobs"
-        ).json()
+        return self.__api_get(f"/projects/{repo_id}/pipelines/{pipeline_id}/jobs").json()
 
-    def get_pipeline_jobs_status(
-        self, repo_id: int, pipeline_id: int, with_commit_msg: bool = False
-    ) -> dict[str, int]:
+    def get_pipeline_jobs_status(self, repo_id: int, pipeline_id: int, with_commit_msg: bool = False) -> dict[str, int]:
         from resources.template import initial_gitlab_pipline_info
 
         jobs = self.gl_pipeline_jobs(repo_id, pipeline_id)
@@ -1117,9 +1049,7 @@ class GitLab(object):
         return self.gl_create_commit(repo_id, branch, commit_msg)
 
     def create_pipeline(self, repo_id: int, branch: str):
-        latest_pipeline_info = self.gl_list_pipelines(
-            repo_id=repo_id, limit=1, start=0, branch=branch
-        )[0]
+        latest_pipeline_info = self.gl_list_pipelines(repo_id=repo_id, limit=1, start=0, branch=branch)[0]
         sha = latest_pipeline_info["sha"]
         commit_msg = self.single_commit(repo_id, sha)["title"]
         return self.gl_create_commit(repo_id, branch, commit_msg)
@@ -1171,9 +1101,7 @@ class GitLab(object):
     def gl_delete_pj_variable(self, repo_id: int, key: str):
         return self.__api_delete(f"/projects/{repo_id}/variables/{key}").json
 
-    def create_pj_variable(
-        self, repo_id: int, key: str, value: str, attribute: dict[str, Any] = {}
-    ):
+    def create_pj_variable(self, repo_id: int, key: str, value: str, attribute: dict[str, Any] = {}):
         data = {
             "variable_type": "env_var",
             "protected": False,
@@ -1258,9 +1186,7 @@ def get_all_repo_members(project_id=None):
     while page <= x_total_pages:
         params = {"page": page}
         if project_id:
-            output = gitlab.gl_project_list_member(
-                get_nexus_repo_id(project_id), params
-            )
+            output = gitlab.gl_project_list_member(get_nexus_repo_id(project_id), params)
         else:
             output = gitlab.gl_get_user_list(params)
         gl_users.extend(output.json())
@@ -1279,14 +1205,10 @@ def account_is_gitlab_project_memeber(project_id, account):
 def get_commit_issues_relation(project_id, issue_id, limit):
     account = get_jwt_identity()["user_account"]
     relation_project_list = (
-        [project_id]
-        + get_all_fathers_project(project_id, [])
-        + get_all_sons_project(project_id, [])
+        [project_id] + get_all_fathers_project(project_id, []) + get_all_sons_project(project_id, [])
     )
     commit_issues_relations = (
-        model.IssueCommitRelation.query.filter(
-            model.IssueCommitRelation.project_id.in_(tuple(relation_project_list))
-        )
+        model.IssueCommitRelation.query.filter(model.IssueCommitRelation.project_id.in_(tuple(relation_project_list)))
         .filter(model.IssueCommitRelation.issue_ids.contains([int(issue_id)]))
         .order_by(desc(model.IssueCommitRelation.commit_time))
         .limit(limit)
@@ -1303,12 +1225,8 @@ def get_commit_issues_relation(project_id, issue_id, limit):
             "commit_title": commit_issues_relation.commit_title,
             "commit_time": str(commit_issues_relation.commit_time.isoformat()),
             "branch": commit_issues_relation.branch,
-            "web_url": commit_id_to_url(
-                commit_issues_relation.project_id, commit_issues_relation.commit_id
-            )
-            if account_is_gitlab_project_memeber(
-                commit_issues_relation.project_id, account
-            )
+            "web_url": commit_id_to_url(commit_issues_relation.project_id, commit_issues_relation.commit_id)
+            if account_is_gitlab_project_memeber(commit_issues_relation.project_id, account)
             else None,
             "created_at": str(commit_issues_relation.created_at),
             "updated_at": str(commit_issues_relation.updated_at),
@@ -1322,18 +1240,12 @@ def get_project_plugin_object(project_id):
 
 
 def get_project_commit_endpoint_object(project_id):
-    project_commit_endpoint = model.ProjectCommitEndpoint.query.filter_by(
-        project_id=project_id
-    ).first()
+    project_commit_endpoint = model.ProjectCommitEndpoint.query.filter_by(project_id=project_id).first()
     if project_commit_endpoint is None:
-        new = model.ProjectCommitEndpoint(
-            project_id=project_id, commit_id=None, updated_at=None
-        )
+        new = model.ProjectCommitEndpoint(project_id=project_id, commit_id=None, updated_at=None)
         model.db.session.add(new)
         model.db.session.commit()
-        return model.ProjectCommitEndpoint.query.filter_by(
-            project_id=project_id
-        ).first()
+        return model.ProjectCommitEndpoint.query.filter_by(project_id=project_id).first()
     return project_commit_endpoint
 
 
@@ -1342,9 +1254,7 @@ def sync_commit_issues_relation(project_id):
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id, force=True)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
-    issue_list = [
-        str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues
-    ]
+    issue_list = [str(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
 
     pj = gitlab.gl.projects.get(git_pj_id)
     for br in pj.branches.list(all=True):
@@ -1354,18 +1264,12 @@ def sync_commit_issues_relation(project_id):
             if project_commit_endpoint.updated_at is not None
             else None
         )
-        commits = gitlab.get_commits(
-            git_pj_id, branch=br.name, per_page=5000, since=end_point
-        )
+        commits = gitlab.get_commits(git_pj_id, branch=br.name, per_page=5000, since=end_point)
         for commit in commits:
             # Find all issue_id startswith '#'
             regex = re.compile(r"#(\d+)")
             commit_issue_id_list = regex.findall(commit["title"])
-            commit_issue_id_list = [
-                int(issue_id)
-                for issue_id in commit_issue_id_list
-                if issue_id in issue_list
-            ]
+            commit_issue_id_list = [int(issue_id) for issue_id in commit_issue_id_list if issue_id in issue_list]
 
             if commit_issue_id_list != []:
                 # Just in case it stores duplicated commit.
@@ -1377,9 +1281,7 @@ def sync_commit_issues_relation(project_id):
                         author_name=commit["author_name"],
                         commit_message=commit["message"],
                         commit_title=commit["title"],
-                        commit_time=datetime.strptime(
-                            commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"
-                        ),
+                        commit_time=datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"),
                         web_url=commit["web_url"],
                         branch=br.name,
                         created_at=datetime.utcnow().strftime(GITLAB_DATETIME_FORMAT),
@@ -1392,9 +1294,7 @@ def sync_commit_issues_relation(project_id):
                 finally:
                     model.db.session.close()
 
-        if end_point is None or br.commit["committed_date"] > "T".join(
-            end_point.split(" ")
-        ):
+        if end_point is None or br.commit["committed_date"] > "T".join(end_point.split(" ")):
             project_commit_endpoint.updated_at = br.commit["committed_date"]
             project_commit_endpoint.commit_id = br.commit["id"]
             model.db.session.commit()
@@ -1436,44 +1336,28 @@ def get_commit_issues_hook_by_branch(project_id, branch_name, limit):
     # Find root project to get all related issues
     root_project_id = get_root_project_id(project_id)
     root_plan_project_id = get_project_plugin_object(root_project_id).plan_project_id
-    issue_list = [
-        int(issue.id) for issue in redmine.project.get(root_plan_project_id).issues
-    ]
+    issue_list = [int(issue.id) for issue in redmine.project.get(root_plan_project_id).issues]
 
     commits = gitlab.get_commits(repo_id, branch=branch_name, per_page=limit)
     for commit in commits:
         ret = {"issue_hook": {}}
-        issue_commit_relation = model.IssueCommitRelation.query.filter_by(
-            commit_id=commit["id"]
-        ).first()
-        commit_issue_id_list = (
-            issue_commit_relation.issue_ids if issue_commit_relation is not None else []
-        )
+        issue_commit_relation = model.IssueCommitRelation.query.filter_by(commit_id=commit["id"]).first()
+        commit_issue_id_list = issue_commit_relation.issue_ids if issue_commit_relation is not None else []
         for issue_id in commit_issue_id_list:
             if issue_id in issue_list:
                 issue = redmine.issue.get(issue_id)
                 issue_project_id = (
-                    model.ProjectPluginRelation.query.filter_by(
-                        plan_project_id=issue.project.id
-                    )
-                    .first()
-                    .project_id
+                    model.ProjectPluginRelation.query.filter_by(plan_project_id=issue.project.id).first().project_id
                 )
-                ret["issue_hook"][issue_id] = account in get_project_members(
-                    issue_project_id
-                )
+                ret["issue_hook"][issue_id] = account in get_project_members(issue_project_id)
 
         commit_id = commit["id"]
         ret["commit_id"] = commit_id
         ret["commit_short_id"] = commit_id[:7]
         ret["author_name"] = commit["author_name"]
         ret["commit_title"] = commit["title"]
-        ret["commit_time"] = datetime.strptime(
-            commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z"
-        ).isoformat()
-        ret["gitlab_url"] = (
-            commit_id_to_url(project_id, commit_id) if show_url else None
-        )
+        ret["commit_time"] = datetime.strptime(commit["committed_date"], "%Y-%m-%dT%H:%M:%S.%f%z").isoformat()
+        ret["gitlab_url"] = commit_id_to_url(project_id, commit_id) if show_url else None
 
         ret_list.append(ret)
 
@@ -1486,9 +1370,7 @@ def verify_github_info(value: dict[str, str]) -> None:
     g: Github = Github(login_or_token=token)
     try:
         login: str = g.get_user().login
-        not_alive_messages: list = get_unread_notification_message_list(
-            title="GitHub token is unavailable"
-        )
+        not_alive_messages: list = get_unread_notification_message_list(title="GitHub token is unavailable")
         if not_alive_messages:
             for not_alive_message in not_alive_messages:
                 close_notification_message(not_alive_message["id"])
@@ -1513,9 +1395,7 @@ def verify_github_info(value: dict[str, str]) -> None:
         raise apiError.DevOpsError(
             400,
             "Token is not belong to this account.",
-            apiError.error_with_alert_code(
-                "github", 20002, "Token is not belong to this account.", value
-            ),
+            apiError.error_with_alert_code("github", 20002, "Token is not belong to this account.", value),
         )
 
     if len([repo for repo in g.search_repositories(query="iiidevops in:name")]) == 0:
@@ -1558,13 +1438,9 @@ def gitlab_status_connection():
 
 def get_source_code_info(repo_name, branch):
     project_query = Project.query.filter(Project.name == repo_name).first()
-    query = ProjectPluginRelation.query.filter(
-        ProjectPluginRelation.project_id == project_query.id
-    ).first()
+    query = ProjectPluginRelation.query.filter(ProjectPluginRelation.project_id == project_query.id).first()
     code_len_query = (
-        GitlabSourceCodeLens.query.filter(
-            GitlabSourceCodeLens.project_id == project_query.id
-        )
+        GitlabSourceCodeLens.query.filter(GitlabSourceCodeLens.project_id == project_query.id)
         .filter(GitlabSourceCodeLens.branch == branch)
         .first()
     )
@@ -1622,9 +1498,7 @@ class GitProjectBranches(Resource):
         return util.success(
             {
                 "branch_list": gitlab.gl_get_branches(repository_id),
-                "default_branch": gitlab.gl_get_project(repository_id).get(
-                    "default_branch"
-                ),
+                "default_branch": gitlab.gl_get_project(repository_id).get("default_branch"),
             }
         )
 
@@ -1645,9 +1519,7 @@ class GitProjectBranchesV2(MethodResource):
         return util.success(
             {
                 "branch_list": gitlab.gl_get_branches(repository_id),
-                "default_branch": gitlab.gl_get_project(repository_id).get(
-                    "default_branch"
-                ),
+                "default_branch": gitlab.gl_get_project(repository_id).get("default_branch"),
             }
         )
 
@@ -1835,11 +1707,7 @@ class GitProjectBranchCommits(Resource):
         parser.add_argument("branch", type=str, required=True, location="args")
         parser.add_argument("filter", type=str, location="args")
         args = parser.parse_args()
-        return util.success(
-            gitlab.gl_get_commits_by_author(
-                repository_id, args["branch"], args.get("filter")
-            )
-        )
+        return util.success(gitlab.gl_get_commits_by_author(repository_id, args["branch"], args.get("filter")))
 
 
 class GitProjectBranchCommitsV2(MethodResource):
@@ -1850,11 +1718,7 @@ class GitProjectBranchCommitsV2(MethodResource):
     def get(self, repository_id, **kwargs):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        return util.success(
-            gitlab.gl_get_commits_by_author(
-                repository_id, kwargs["branch"], kwargs.get("filter")
-            )
-        )
+        return util.success(gitlab.gl_get_commits_by_author(repository_id, kwargs["branch"], kwargs.get("filter")))
 
 
 class GitProjectMembersCommits(Resource):
@@ -1865,9 +1729,7 @@ class GitProjectMembersCommits(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("branch", type=str, required=True, location="args")
         args = parser.parse_args()
-        return util.success(
-            gitlab.gl_get_commits_by_members(repository_id, args["branch"])
-        )
+        return util.success(gitlab.gl_get_commits_by_members(repository_id, args["branch"]))
 
 
 class GitProjectMembersCommitsV2(MethodResource):
@@ -1878,9 +1740,7 @@ class GitProjectMembersCommitsV2(MethodResource):
     def get(self, repository_id, **kwargs):
         project_id = get_nexus_project_id(repository_id)
         role.require_in_project(project_id)
-        return util.success(
-            gitlab.gl_get_commits_by_members(repository_id, kwargs["branch"])
-        )
+        return util.success(gitlab.gl_get_commits_by_members(repository_id, kwargs["branch"]))
 
 
 class GitProjectNetwork(Resource):
@@ -1918,9 +1778,7 @@ class GitProjectIdFromURL(Resource):
         parser.add_argument("repository_url", type=str, required=True, location="args")
         args = parser.parse_args()
         try:
-            return util.success(
-                GitLab.gl_get_project_id_from_url(args["repository_url"])
-            )
+            return util.success(GitLab.gl_get_project_id_from_url(args["repository_url"]))
         except NoResultFound:
             return util.respond(
                 404,
@@ -1936,9 +1794,7 @@ class GitProjectIdFromURLV2(MethodResource):
     @marshal_with(route_model.GitGetProjectIdFromURIRes)
     def get(self, **kwargs):
         try:
-            return util.success(
-                GitLab.gl_get_project_id_from_url(kwargs["repository_url"])
-            )
+            return util.success(GitLab.gl_get_project_id_from_url(kwargs["repository_url"]))
         except NoResultFound:
             return util.respond(
                 404,
@@ -2020,9 +1876,7 @@ class SyncGitCommitIssueRelation(Resource):
         parser = reqparse.RequestParser()
         parser.add_argument("limit", type=int, default=10, location="args")
         args = parser.parse_args()
-        return util.success(
-            get_commit_issues_relation(project_id, issue_id, args["limit"])
-        )
+        return util.success(get_commit_issues_relation(project_id, issue_id, args["limit"]))
 
     @jwt_required()
     def post(self, project_id):
@@ -2055,11 +1909,7 @@ class GetCommitIssueHookByBranch(Resource):
         parser.add_argument("limit", type=int, default=10, location="args")
         parser.add_argument("branch_name", type=str, required=True, location="args")
         args = parser.parse_args()
-        return util.success(
-            get_commit_issues_hook_by_branch(
-                project_id, args["branch_name"], args["limit"]
-            )
-        )
+        return util.success(get_commit_issues_hook_by_branch(project_id, args["branch_name"], args["limit"]))
 
 
 # class GitlabDomainConnection(Resource):
@@ -2115,9 +1965,7 @@ class GitlabSingleCommitV2(MethodResource):
 @marshal_with(route_model.GitlabSourceCodeResponse)
 class GitlabSourceCodeV2(MethodResource):
     def post(self, **kwargs):
-        project_query = Project.query.filter(
-            Project.name == kwargs["repo_name"]
-        ).first()
+        project_query = Project.query.filter(Project.name == kwargs["repo_name"]).first()
         update_dict = {
             "branch": kwargs["branch_name"],
             "commit_id": kwargs["commit_id"],
