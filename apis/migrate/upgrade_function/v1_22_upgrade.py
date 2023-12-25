@@ -1,4 +1,4 @@
-from model import db, Lock, SystemParameter
+from model import db, Lock, SystemParameter, DefaultAlertDays
 from util import model_insert_default_value
 from migrate.upgrade_function.upload_file_types import upload_file_types
 from resources.redmine import redmine
@@ -64,3 +64,8 @@ def insert_default_value_in_system_parameter():
         {"name": "upload_file_size", "value": {"upload_file_size": 5}, "active": True},
     ]
     model_insert_default_value(SystemParameter, data_list)
+
+
+def insert_default_value_in_default_alert_days():
+    data_list = [{"unchange_days": 30, "comming_days": 7}]
+    model_insert_default_value(DefaultAlertDays, data_list)
