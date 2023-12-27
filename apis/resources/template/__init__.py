@@ -315,10 +315,8 @@ def lock_project(pj_name, info):
 
 
 def tm_get_template_list(force_update=0):
-    if force_update == 1:
-        return fetch_and_update_template_cache()
-    elif count_template_number() == 0:
-        return fetch_and_update_template_cache()
+    if force_update == 1 or count_template_number() == 0:
+        fetch_and_update_template_cache()
     else:
         total_data = get_template_caches_all()
         output = [

@@ -37,7 +37,6 @@ if not os.path.isfile(_alembic_config) or config.get("DEBUG"):
                     ini.write(line)
 
 
-
 # Each time you add a migration, add a version code here.
 
 VERSIONS = ["0.0.0.0", "0.0.1.0"]
@@ -77,6 +76,8 @@ def init():
     logger.info("Insert default value in Lock done")
     v1_22_upgrade.insert_default_value_in_system_parameter()
     logger.info("Insert default value in SystemParameter done")
+    v1_22_upgrade.insert_default_value_in_default_alert_days()
+    logger.info("Insert default value in DefaultAlertDays done")
     ui_route_first_version()
     logger.info("Insert default value in UiRouteData done")
 
