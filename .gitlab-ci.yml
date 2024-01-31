@@ -14,6 +14,11 @@ Test--SonarQube source code scan:
   only:
   - master
   - develop
+Test--Anchore SBOM source code scan:
+  variables:
+    iiidevops: anchore-code
+  only:
+  - skip
 Test--Checkmarx source code scan:
   variables:
     iiidevops: checkmarx
