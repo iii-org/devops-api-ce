@@ -729,7 +729,7 @@ def check_create_user_pwd_valid(user_source_password: str, from_ad: bool) -> Non
     if (
         need_password_check is True
         and re.fullmatch(
-            r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])" r"^[\w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$",
+            r"(?=.*\d)(?=.*[a-z])(?=.*[A-Z])" r"^[ \w!@#$%^&*()+|{}\[\]`~\-\'\";:/?.\\>,<]{8,20}$",
             user_source_password,
         )
         is None
