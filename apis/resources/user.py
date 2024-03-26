@@ -121,7 +121,7 @@ def get_all_user_info():
 def get_user_id_from_redmine_id(redmin_user_id: int):
     user = model.UserPluginRelation.query.filter_by(plan_user_id=redmin_user_id).first()
     return user.user_id
-    
+
 
 def get_role_id(user_id):
     row = model.ProjectUserRole.query.filter_by(user_id=user_id).first()
@@ -953,22 +953,49 @@ def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], 
 def user_list(filters):
     per_page = 10
     page_dict = None
-    query = model.User.query.filter(model.User.id != 1).order_by(nullslast(model.User.last_login.desc()))
+    query = model.User.query.filter(model.User.id != 1)
     if "role_ids" in filters:
+        filters["role_ids"] = json.loads(f"[{filters['role_ids']}]")
         filtered_user_ids = (
             model.ProjectUserRole.query.filter(model.ProjectUserRole.role_id.in_(filters["role_ids"]))
             .with_entities(model.ProjectUserRole.user_id)
             .distinct()
             .subquery()
         )
-        query = query.filter(model.User.id.in_(filtered_user_ids))
+        # Convert subquery into a SELECT construct explicitly for use in IN()
+        query = query.filter(model.User.id.in_(filtered_user_ids.select()))
     if "search" in filters:
         query = query.filter(
             or_(
                 model.User.login.ilike(f'%{filters["search"]}%'),
                 model.User.name.ilike(f'%{filters["search"]}%'),
+                model.User.department.ilike(f'%{filters["search"]}%'),
             )
         )
+    if "disabled" in filters:
+        query = query.filter(model.User.disabled == filters["disabled"])
+    if "last_login" in filters:
+        s_time = datetime.datetime.strptime(filters["last_login"][0], "%Y-%m-%dT%H:%M:%S")
+        e_time = datetime.datetime.strptime(filters["last_login"][1], "%Y-%m-%dT%H:%M:%S")
+        query = query.filter(model.User.last_login.between(s_time, e_time))
+    if "create_at" in filters:
+        s_time = datetime.datetime.strptime(filters["create_at"][0], "%Y-%m-%dT%H:%M:%S")
+        e_time = datetime.datetime.strptime(filters["create_at"][1], "%Y-%m-%dT%H:%M:%S")
+        query = query.filter(model.User.create_at.between(s_time, e_time))
+    if "sort" in filters and filters["desc"] is False:
+        if filters["sort"] == "last_login":
+            query = query.order_by(model.User.last_login)
+        elif filters["sort"] == "account":
+            query = query.order_by(model.User.login)
+        elif filters["sort"] == "department":
+            query = query.order_by(model.User.department)
+    elif "sort" in filters and filters["desc"] is True:
+        if filters["sort"] == "last_login":
+            query = query.order_by(desc(model.User.last_login))
+        elif filters["sort"] == "account":
+            query = query.order_by(desc(model.User.login))
+        elif filters["sort"] == "department":
+            query = query.order_by(desc(model.User.department))
     if "per_page" in filters:
         per_page = filters["per_page"]
     if "page" in filters:

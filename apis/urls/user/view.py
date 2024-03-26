@@ -141,25 +141,12 @@ class SingleUser(Resource):
 
 
 class UserList(Resource):
+    # cause UI think query is too long and devops api seldom use json when get data, so this function is post
+    @use_kwargs(router_model.GetUserListSchema, location="json")
     @jwt_required()
-    def get(self):
+    def post(self, **kwargs):
         role.require_pm()
-        parser = reqparse.RequestParser()
-        parser.add_argument("role_ids", type=str, location="args")
-        parser.add_argument("page", type=int, location="args")
-        parser.add_argument("per_page", type=int, location="args")
-        parser.add_argument("search", type=str, location="args")
-        args = parser.parse_args()
-        filters = {}
-        if args["role_ids"] is not None:
-            filters["role_ids"] = json.loads(f'[{args["role_ids"]}]')
-        if args["page"] is not None:
-            filters["page"] = args["page"]
-        if args["per_page"] is not None:
-            filters["per_page"] = args["per_page"]
-        if args["search"] is not None:
-            filters["search"] = args["search"]
-        return util.success(user_list(filters))
+        return util.success(user_list(kwargs))
 
 
 @doc(tags=["User"], description="SingleUser API")
@@ -178,21 +165,13 @@ class GetUserByemailV2(MethodResource):
 
 @doc(tags=["User"], description="SingleUser API", security=security_params)
 class UserListV2(MethodResource):
-    @use_kwargs(router_model.UserListSchema, location="query")
+    # cause UI think query is too long and devops api seldom use json when get data, so this function is post
+    @use_kwargs(router_model.GetUserListSchema, location="json")
     @marshal_with(router_model.GetUserListResponse)  # marshalling
     @jwt_required()
-    def get(self, **kwargs):
+    def post(self, **kwargs):
         role.require_pm()
-        filters = {}
-        if kwargs.get("role_ids") is not None:
-            filters["role_ids"] = json.loads(f'[{kwargs.get("role_ids")}]')
-        if kwargs.get("page") is not None:
-            filters["page"] = kwargs.get("page")
-        if kwargs.get("per_page") is not None:
-            filters["per_page"] = kwargs.get("per_page")
-        if kwargs.get("search") is not None:
-            filters["search"] = kwargs.get("search")
-        return util.success(user_list(filters))
+        return util.success(user_list(kwargs))
 
 
 # class UserSaConfig(Resource):
