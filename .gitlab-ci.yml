@@ -13,7 +13,6 @@ Test--SonarQube source code scan:
     CHART_TYPE: normal
   only:
   - master
-  - develop
 Test--Anchore SBOM source code scan:
   variables:
     iiidevops: anchore-code
@@ -24,7 +23,6 @@ Test--Checkmarx source code scan:
     iiidevops: checkmarx
   only:
   - master
-  - develop
 Build image:
   variables:
     iiidevops: build-image
@@ -100,7 +98,6 @@ Test--Anchore SBOM:
     iiidevops: anchore
   only:
   - master
-  - develop
 Test--ZAP:
   variables:
     iiidevops: zap
