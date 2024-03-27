@@ -36,3 +36,4 @@ celery==5.2.7
 pandas==1.4.2
 python-dotenv==0.20.0
 devopsapi-module @ git+https://github.com/iii-org/devops-system-module.git@8b11b451b963a40fb3289b9cd3361fe4de7368c3
+dnspython==2.5.0

@@ -67,6 +67,7 @@ class PostSingleUserSchema(Schema):
 
 #################################### Response ####################################
 
+
 ########## Module ##########
 class SingleUserDataResponse(Schema):
     user_id = fields.Integer(required=True, doc="user_id")
@@ -218,6 +219,28 @@ class PatchUserMessageTypeSchema(Schema):
     notification = fields.Boolean()
     mail = fields.Boolean()
     teams = fields.Boolean()
+
+
+class GetUserListSchema(Schema):
+    role_ids = fields.Str(required=False, doc="role_ids", example=1)
+    page = fields.Integer(required=False, doc="page", example=10)
+    per_page = fields.Integer(required=False, doc="per_page")
+    search = fields.Str(required=False, doc="search", example="3,5")
+    sort = fields.Str(required=False, doc="sort", example="id,desc")
+    desc = fields.Boolean(required=False, doc="desc", example=True)
+    disabled = fields.Boolean(required=False, doc="disable", example=True)
+    last_login = fields.List(
+        fields.Str(),
+        required=False,
+        doc="last_login",
+        example=["2022-07-19T02:11:12.289543", "2022-07-19T02:11:12.289543"],
+    )
+    create_at = fields.List(
+        fields.Str(),
+        required=False,
+        doc="create_at",
+        example=["2022-07-19T02:11:12.289543", "2022-07-19T02:11:12.289543"],
+    )
 
 
 #################################### Response ####################################
