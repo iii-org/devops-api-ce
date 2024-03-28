@@ -23,6 +23,7 @@ Test--Checkmarx source code scan:
     iiidevops: checkmarx
   only:
   - master
+  - excalidraw
 Build image:
   variables:
     iiidevops: build-image
