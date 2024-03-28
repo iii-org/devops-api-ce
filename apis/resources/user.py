@@ -7,7 +7,7 @@ import nexus
 # import kubernetes
 from Cryptodome.Hash import SHA256
 from flask_jwt_extended import create_access_token, JWTManager, get_jwt_identity
-from sqlalchemy import inspect, or_
+from sqlalchemy import case, desc, inspect, or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import NoResultFound
 
@@ -950,6 +950,15 @@ def create_user_in_other_dbs(server_user_id_mapping: dict[str, dict[str, Any]], 
 ########## Create User End ##########
 
 
+def get_order_by_expression(field, descending=False):
+    if descending:
+        order_by_case = case([(field != None, 1)], else_=0)
+        return [desc(order_by_case), desc(field)]
+    else:
+        order_by_case = case([(field == None, 1)], else_=0)
+        return [order_by_case, field]
+
+
 def user_list(filters):
     per_page = 10
     page_dict = None
@@ -982,20 +991,18 @@ def user_list(filters):
         s_time = datetime.datetime.strptime(filters["create_at"][0], "%Y-%m-%dT%H:%M:%S")
         e_time = datetime.datetime.strptime(filters["create_at"][1], "%Y-%m-%dT%H:%M:%S")
         query = query.filter(model.User.create_at.between(s_time, e_time))
-    if "sort" in filters and filters["desc"] is False:
+    if "sort" in filters:
+        desc_order = filters.get("desc", False)
         if filters["sort"] == "last_login":
-            query = query.order_by(model.User.last_login)
+            order_by_clause = get_order_by_expression(model.User.last_login, desc_order)
+        elif filters["sort"] == "create_at":
+            order_by_clause = get_order_by_expression(model.User.create_at, desc_order)
         elif filters["sort"] == "account":
-            query = query.order_by(model.User.login)
+            order_by_clause = get_order_by_expression(model.User.login, desc_order)
         elif filters["sort"] == "department":
-            query = query.order_by(model.User.department)
-    elif "sort" in filters and filters["desc"] is True:
-        if filters["sort"] == "last_login":
-            query = query.order_by(desc(model.User.last_login))
-        elif filters["sort"] == "account":
-            query = query.order_by(desc(model.User.login))
-        elif filters["sort"] == "department":
-            query = query.order_by(desc(model.User.department))
+            order_by_clause = get_order_by_expression(model.User.department, desc_order)
+
+        query = query.order_by(*order_by_clause)
     if "per_page" in filters:
         per_page = filters["per_page"]
     if "page" in filters:
