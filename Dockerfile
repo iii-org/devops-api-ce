@@ -37,7 +37,7 @@ COPY docker-entrypoint.sh /
 COPY --from=library /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-RUN echo "ce-0.7.0" > git_tag
+RUN echo "ce-0.7.1" > git_tag
 COPY --from=buildler /app/git_commit .
 COPY --from=buildler /app/git_date .
 COPY --from=buildler /app .
