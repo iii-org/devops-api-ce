@@ -60,6 +60,7 @@ class User(db.Model):
     department = Column(String(300))
     plugin_relation = relationship("UserPluginRelation", uselist=False)
     project_role = relationship("ProjectUserRole", back_populates="user")
+    user_route = relationship("CustomerUserRoute", back_populates="user")
     last_login = Column(DateTime)
 
     def __repr__(self):
@@ -69,7 +70,7 @@ class User(db.Model):
             for x in dir(self)
             if not x.startswith("query") and not x.startswith("_") and x not in ["metadata", "registry"]
         ]:
-            if field in ["starred_project", "plugin_relation", "project_role"]:
+            if field in ["starred_project", "plugin_relation", "project_role", "user_route"]:
                 continue
             data = self.__getattribute__(field)
             try:

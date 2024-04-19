@@ -33,3 +33,7 @@ def user_url(api, add_resource):
 
     api.add_resource(view.UserNewpasswordInfoV2, "/v2/user/<int:user_id>/newpasswordinfo")
     add_resource(view.UserNewpasswordInfoV2, "public")
+
+    # user_route
+    api.add_resource(view.UserRoute, "/user/user_route")
+    add_resource(view.UserRoute, "private")

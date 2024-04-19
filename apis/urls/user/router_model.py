@@ -303,3 +303,19 @@ class NewpasswordResponse(Schema):
     new_pwd = fields.Str(required=True)
     server = fields.Str(required=True)
     old_pwd = fields.Str(required=False)
+
+
+### User Route
+
+#################################### Schema ####################################
+
+########## API Action ##########
+
+
+class GetUserRouteSchema(Schema):
+    user_id = fields.Integer(required=True, doc="user_id", example=1)
+
+
+class PostUserRouteSchema(Schema):
+    user_id = fields.Integer(required=True, doc="user_id", example=1)
+    route = fields.Dict(required=True, doc="route", example={"route": "route"})

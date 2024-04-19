@@ -1156,3 +1156,24 @@ def update_user_message_types(user_id, args):
                 )
             users_message_type.mail = mail
         db.session.commit()
+
+
+def post_user_route(kwargs) -> None:
+    user_id = kwargs["user_id"]
+    add = {"user_route": kwargs["route"]}
+    check = model.CustomerUserRoute.query.filter_by(user_id=user_id).first()
+    if not check:
+        row = model.CustomerUserRoute(user_id=user_id, user_route=add)
+        db.session.add(row)
+    else:
+        check.user_route = add
+    db.session.commit()
+
+
+def get_user_route(user_id: int) -> list:
+    route = model.CustomerUserRoute.query.filter_by(user_id=user_id).first()
+    if route:
+        route.user_route["user_id"] = user_id
+        return route.user_route.get("user_route")
+    else:
+        return []
