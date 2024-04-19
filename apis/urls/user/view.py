@@ -18,6 +18,8 @@ from resources.user import (
     get_user_message_type,
     get_decode_password,
     update_newpassword,
+    get_user_route,
+    post_user_route,
 )
 from resources import role
 from . import router_model
@@ -229,3 +231,17 @@ class UserNewpasswordInfoV2(MethodResource):
             return util.success()
         else:
             return util.respond(400, msg)
+
+
+class UserRoute(MethodResource):
+    @doc(tags=["User"], description="User route.")
+    @use_kwargs(router_model.GetUserRouteSchema, location="query")
+    @jwt_required
+    def get(self, **kwargs):
+        return util.success(get_user_route(kwargs["user_id"]))
+
+    @doc(tags=["User"], description="User route.")
+    @use_kwargs(router_model.PostUserRouteSchema, location="json")
+    @jwt_required
+    def post(self, **kwargs):
+        return util.success(post_user_route(kwargs))
