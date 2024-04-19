@@ -236,12 +236,12 @@ class UserNewpasswordInfoV2(MethodResource):
 class UserRoute(MethodResource):
     @doc(tags=["User"], description="User route.")
     @use_kwargs(router_model.GetUserRouteSchema, location="query")
-    @jwt_required
+    @jwt_required()
     def get(self, **kwargs):
         return util.success(get_user_route(kwargs["user_id"]))
 
     @doc(tags=["User"], description="User route.")
     @use_kwargs(router_model.PostUserRouteSchema, location="json")
-    @jwt_required
+    @jwt_required()
     def post(self, **kwargs):
         return util.success(post_user_route(kwargs))
