@@ -13,6 +13,7 @@ Steps to modify the ORM model:
 
 If you don't have the alembic.ini, copy _alembic.ini and replace the postgres uri by yourself.
 """
+
 import json
 from typing import Optional
 
@@ -1216,3 +1217,7 @@ class StorageClass(db.Model):
 
 
 # 20230118 為取得 storage class 資訊而新增下上列一段程式
+class CustomerUserRoute(db.Model):
+    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), primary_key=True)
+    user_route = Column(JSONB)
+    user = relationship("User", back_populates="user_route")

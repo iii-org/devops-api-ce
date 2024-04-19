@@ -39,7 +39,7 @@ if not os.path.isfile(_alembic_config) or config.get("DEBUG"):
 
 # Each time you add a migration, add a version code here.
 
-VERSIONS = ["0.0.0.0", "0.0.1.0"]
+VERSIONS = ["0.0.0.0", "0.0.1.0", "0.0.1.1"]
 
 
 def _upgrade(version):
