@@ -318,4 +318,4 @@ class GetUserRouteSchema(Schema):
 
 class PostUserRouteSchema(Schema):
     user_id = fields.Integer(required=True, doc="user_id", example=1)
-    route = fields.Dict(required=True, doc="route", example={"route": "route"})
+    route = fields.List(fields.Dict(), required=True, doc="route", example=[{"id": 1, "name": "name"}])
