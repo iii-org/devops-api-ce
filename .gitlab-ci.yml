@@ -1,12 +1,15 @@
 include:
 - project: iiidevops-templates/ci-template
   file: ci/template.gitlab-ci.yml
+  ref: v2.6.0
+
 stages:
 - initial
 - scan
 - build
 - deploy
 - test
+
 Test--SonarQube source code scan:
   variables:
     iiidevops: sonarqube

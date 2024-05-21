@@ -19,7 +19,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
 RUN apt-get update && \
-    # pip install --upgrade pip && \
     apt-get install --yes --no-install-recommends git && \
     pip install --no-cache-dir -r requirements.txt 
    
