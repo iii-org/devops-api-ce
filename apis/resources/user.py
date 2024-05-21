@@ -221,6 +221,7 @@ def login(args):
                 return util.success({"status": status, "token": token, "ad_info": ad_info})
         return util.respond(401, "Error when logging in.", error=apiError.wrong_password())
     except Exception as e:
+        logger.info(e)
         raise DevOpsError(500, "Error when user login.", error=apiError.uncaught_exception(e))
 
 

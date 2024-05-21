@@ -1,4 +1,4 @@
-FROM python:3.9.18-slim AS python_base
+FROM python:3.10.14-slim AS python_base
 
 FROM bitnami/git:latest AS buildler
 
@@ -19,9 +19,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
 RUN apt-get update && \
+    # pip install --upgrade pip && \
     apt-get install --yes --no-install-recommends git && \
-    pip install --no-cache-dir -r requirements.txt
-
+    pip install --no-cache-dir -r requirements.txt 
+   
 FROM python_base AS base
 
 RUN apt-get update && \
