@@ -56,13 +56,13 @@ if config.DEBUG:
     urllib3.disable_warnings()
 
 if config.DEBUG is False:
-    # import eventlet
+    import eventlet
 
-    # eventlet.monkey_patch(socket=True, select=True, thread=True)
+    eventlet.monkey_patch(socket=True, select=True, thread=True)
 
-    from gevent import monkey
+    # from gevent import monkey
 
-    monkey.patch_all(socket=True, thread=True, select=True)
+    # monkey.patch_all(socket=True, thread=True, select=True)
 
     # eventlet.monkey_patch(socket=True, select=True, thread=True)
 
@@ -142,7 +142,7 @@ CORS(app)
 if config.get("DEBUG") is False:
     socketio = SocketIO(
         app,
-        async_mode="gevent",
+        # async_mode="gevent",
         message_queue=f'redis://{config.get("REDIS_BASE_URL")}',
         cors_allowed_origins="*",
         logger=False,
@@ -152,7 +152,7 @@ if config.get("DEBUG") is False:
 else:
     socketio = SocketIO(
         app,
-        async_mode="gevent",
+        # async_mode="gevent",
         cors_allowed_origins="*",
         logger=True,
         engineio_logger=True,
