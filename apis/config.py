@@ -25,6 +25,14 @@ _configs: dict[str, Any] = {
 # Define the base folder of the project
 BASE_FOLDER: Path = Path(__file__).parent.parent
 
+# Gitlab default variables
+DEFAULT_REPO_GROUP = "iiidevops"
+PIPELINE_REF_PJ = "iiidevops-templates/ci-template"
+PIPELINE_REF_PJs = ["iiidevops-templates/ci-template", "iiidevops/temp-ci"]
+TEST_PIPELINE_REF_PJs = ["iiidevops/ci-template", "iiidevops/test-temp-ci"]
+CHECKMARX_AVAIL_VERSION = "v2.6.0"
+VAR_SWITCH_AVAIL_VERSION = "v2.8.0"
+
 
 class ValidateException(Exception):
     """
@@ -85,9 +93,7 @@ def _get_branch_name() -> str:
         str: The current branch name
     """
     command: list[str] = ["git", "rev-parse", "--abbrev-ref", "HEAD"]
-    process: subprocess.Popen = subprocess.Popen(
-        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    process: subprocess.Popen = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, _ = process.communicate()
     branch_name: str = output.decode().strip()
 

@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Union
+import yaml
 
 from flask_apispec import marshal_with, doc, use_kwargs
 from flask_apispec.views import MethodResource
@@ -56,6 +57,12 @@ iiidevops_system_group = [
     "iiidevops-catalog",
     config.get("ADMIN_GROUP"),
 ]
+
+
+PIPELINE_REF_PJs = config.PIPELINE_REF_PJs
+TEST_PIPELINE_REF_PJs = config.TEST_PIPELINE_REF_PJs
+CHECKMARX_AVAIL_VERSION = config.CHECKMARX_AVAIL_VERSION
+VAR_SWITCH_AVAIL_VERSION = config.VAR_SWITCH_AVAIL_VERSION
 
 """
 1. Gitlab domain name might need to write /etc/hosts
@@ -1225,9 +1232,11 @@ def get_commit_issues_relation(project_id, issue_id, limit):
             "commit_title": commit_issues_relation.commit_title,
             "commit_time": str(commit_issues_relation.commit_time.isoformat()),
             "branch": commit_issues_relation.branch,
-            "web_url": commit_id_to_url(commit_issues_relation.project_id, commit_issues_relation.commit_id)
-            if account_is_gitlab_project_memeber(commit_issues_relation.project_id, account)
-            else None,
+            "web_url": (
+                commit_id_to_url(commit_issues_relation.project_id, commit_issues_relation.commit_id)
+                if account_is_gitlab_project_memeber(commit_issues_relation.project_id, account)
+                else None
+            ),
             "created_at": str(commit_issues_relation.created_at),
             "updated_at": str(commit_issues_relation.updated_at),
         }
@@ -1464,6 +1473,75 @@ def unprotect_project(gl_pj_id, branch):
         if protect_branch.get("name") == "master":
             gitlab.gl_unprotect_branch(gl_pj_id, branch)
             break
+
+
+def get_gitlab_pipeline_file_obj(repository_id: int, branch_name: str = None) -> dict:
+    """
+    TODO: Replace all template.py's get_pipeline_file_obj with this function.
+    """
+    try:
+        pj = gitlab.gl.projects.get(repository_id)
+    except exceptions.GitlabGetError:
+        raise DevOpsError(
+            404,
+            "Gitlab project not found.",
+            error=apiError.repository_id_not_found(repository_id),
+        )
+    if pj.empty_repo or pj.default_branch is None or pj.repository_tree() is None:
+        return {}
+
+    if branch_name is None:
+        branch_name = pj.default_branch
+
+    f = gitlab.gl_get_file_from_lib(repository_id, ".gitlab-ci.yml", branch_name=branch_name)
+    try:
+        pipe_dict = yaml.safe_load(f.decode())
+    except Exception as ex:
+        raise apiError.DevOpsError(
+            422,
+            ".gitlab-ci.yml format error",
+            error=apiError.gitlab_ci_yaml_format_error(pj.name, branch_name, str(ex)),
+        )
+    return pipe_dict
+
+
+def get_pipeline_version_info(project_id: int) -> dict:
+    """
+    TODO: Refactor this part, when ref pattern is ensure
+    Due to some of the features comes out after certain version,
+    so we need to check it gitlab-ci.yml file to ensure the feature is available.
+    """
+    default_pipeline_version = {
+        "use_new_checkmarx_scan": False,
+        "use_new_switch_control": False,
+    }
+    try:
+        repo_id = get_nexus_repo_id(project_id)
+
+        pip_dict = get_gitlab_pipeline_file_obj(repo_id)
+        if pip_dict.get("include") is None:
+            return default_pipeline_version
+
+        for include in pip_dict["include"]:
+            pipeline_root_pj, pipeline_ref = include.get("project"), include.get("ref")
+            default_pipeline_version = check_pipeline_version(pipeline_root_pj, pipeline_ref, default_pipeline_version)
+
+    except Exception as e:
+        logger.error(f"get_pipeline_version_info error: {e}")
+    return default_pipeline_version
+
+
+def check_pipeline_version(
+    pipeline_root_pj: int, pipeline_ref: str, default_pipeline_version: dict[str, bool]
+) -> dict[str, bool]:
+    if pipeline_root_pj in PIPELINE_REF_PJs or pipeline_root_pj in TEST_PIPELINE_REF_PJs:
+        if pipeline_ref >= CHECKMARX_AVAIL_VERSION or pipeline_ref == "develop":
+            default_pipeline_version["use_new_checkmarx_scan"] = True
+
+        if pipeline_ref >= VAR_SWITCH_AVAIL_VERSION or pipeline_ref == "develop":
+            default_pipeline_version["use_new_switch_control"] = True
+
+    return default_pipeline_version
 
     # --------------------- Resources ---------------------
 
