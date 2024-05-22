@@ -3,6 +3,27 @@
 
 from werkzeug.exceptions import HTTPException
 
+from resources import logger
+
+DEFAULT_THIRD_PARTY_ERROR_MSG = "Something went wrong, please contact admin for assistance."
+
+
+def __parse_redmine_error_message(msg: list) -> str:
+    if not msg or not isinstance(msg, list):
+        return DEFAULT_THIRD_PARTY_ERROR_MSG
+
+    if isinstance(msg[0], str):
+        return msg[0]
+
+    return ""
+
+
+def __parse_gitlab_error_message(msg: dict) -> str:
+    msg = msg.get("base")
+    if isinstance(msg, list) and msg:
+        msg = msg[0]
+    return msg
+
 
 def build(err_code, message, details=None):
     if details is None:
@@ -12,20 +33,37 @@ def build(err_code, message, details=None):
 
 
 def error_3rd_party_api(service_name, response):
-    msg = None
-    service_name_error_msg_mapping = {"Rancher": "message"}
+    msg = ""
+    service_name_default_error_msg_key_mapping = {
+        "Gitlab": "message",
+        "Redmine": "errors",
+    }
+
     if type(response) is str:
-        resp_value = response
+        msg = resp_value = response
     else:
         try:
             resp_value = response.json()
-            error_key = service_name_error_msg_mapping.get(service_name, "")
-            msg = resp_value.get(error_key, "")
+            error_msg_key = service_name_default_error_msg_key_mapping.get(service_name, "message")
+
+            # Redmine error message
+            if service_name == "Redmine" and isinstance(resp_value, dict):
+                msg = resp_value.get(error_msg_key, "")
+                msg = __parse_redmine_error_message(msg)
+
+            # Gitlab error message
+            if service_name == "Gitlab" and isinstance(resp_value, dict):
+                msg = resp_value.get(error_msg_key, "")
+                msg = __parse_gitlab_error_message(msg)
+
         except Exception:
             msg = resp_value = response.text
 
+    # When most of the unexpected error is caught, this logger can be removed.
+    logger.logger.error(f"Service_name: {service_name} get unexpected error: {resp_value}")
+
     message = msg or f"{service_name} responds error."
-    return build(8001, message, {"service_name": service_name, "response": resp_value})
+    return build(8001, message, {"service_name": service_name, "response": msg})
 
 
 # 1: Project errors
@@ -468,6 +506,7 @@ def login_email_error():
 
 # Third party service errors
 
+
 # 8: Redmine
 def redmine_error(response):
     try:
@@ -478,6 +517,13 @@ def redmine_error(response):
     except Exception:
         pass
     return error_3rd_party_api("Redmine", response)
+
+
+def parent_issue_error():
+    return build(
+        8101,
+        "Parent issue setting error! Please confirm that the setting issue is not a sub-issue or related issue of this issue.",
+    )
 
 
 """
@@ -508,6 +554,7 @@ def parent_issue_error():
 def excalidraw_operation_error(msg):
     return build(8102, f"Error occurs during operating excalidraw db, message: {msg}")
 """
+
 
 # GitLab
 def gitlab_error(response):
