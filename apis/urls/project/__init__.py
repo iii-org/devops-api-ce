@@ -149,7 +149,7 @@ def project_url(api, add_resource):
     api.add_resource(view.ProjectPluginUsage, "/project/<sint:project_id>/plugin/resource")
     api.add_resource(view.ProjectPluginUsageV2, "/v2/project/<sint:project_id>/plugin/resource")
     add_resource(view.ProjectPluginUsageV2, "private")
-    '''
+    """
     api.add_resource(view.ProjectUserResource, "/project/<sint:project_id>/resource")
     api.add_resource(view.ProjectUserResourceV2, "/v2/project/<sint:project_id>/resource")
     add_resource(view.ProjectUserResourceV2, "private")
@@ -290,7 +290,7 @@ def project_url(api, add_resource):
         "/v2/project/<sint:project_id>/resource/ingresses",
     )
     add_resource(view.ProjectUserResourceIngressesV2, "public")
-    '''
+    """
     # version
     api.add_resource(view.ProjectVersionList, "/project/<sint:project_id>/version/list")
     api.add_resource(view.ProjectVersionListV2, "/v2/project/<sint:project_id>/version/list")
@@ -305,6 +305,9 @@ def project_url(api, add_resource):
     add_resource(view.ProjectVersionV2, "public")
     api.add_resource(view.ProjectVersionPostV2, "/v2/project/<sint:project_id>/version")
     add_resource(view.ProjectVersionPostV2, "public")
+
+    api.add_resource(view.ProjectPipelineVersion, "/v2/project/<sint:project_id>/pipeline_version")
+    add_resource(view.ProjectPipelineVersion, "private")
 
     # wiki
     api.add_resource(view.ProjectWikiList, "/project/<sint:project_id>/wiki")

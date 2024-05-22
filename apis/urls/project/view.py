@@ -29,6 +29,7 @@ from resources.issue import (
     DownloadIssueAsExcel,
     pj_download_file_is_exist,
 )
+from resources.gitlab import get_pipeline_version_info, gitlab
 from resources import project, user, version, wiki, release
 from resources.gitlab import gitlab
 from resources.project_permission import (
@@ -58,6 +59,11 @@ import werkzeug
 
 
 ##### Project Relation ######
+@doc(tags=["Project"], description="Get project pipeline info.")
+class ProjectPipelineVersion(MethodResource):
+    @jwt_required()
+    def get(self, project_id: str) -> dict[str:bool]:
+        return util.success(get_pipeline_version_info(project_id))
 
 
 @doc(tags=["Project"], description="Check project has son project or not")
@@ -1334,6 +1340,7 @@ class ProjectResourceStorage(MethodResource):
     @jwt_required()
     def patch(self, project_id, **kwargs):
         return util.success(update_project_resource_storage_level(project_id, args=kwargs))
+
 
 ##### project Intedrations ######
 
