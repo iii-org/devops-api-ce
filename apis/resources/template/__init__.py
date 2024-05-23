@@ -316,7 +316,8 @@ def lock_project(pj_name, info):
 
 def tm_get_template_list(force_update=0):
     if force_update == 1 or count_template_number() == 0:
-        fetch_and_update_template_cache()
+        return fetch_and_update_template_cache()
+
     else:
         total_data = get_template_caches_all()
         output = [
@@ -465,7 +466,7 @@ def tm_get_pipeline_branches(repository_id, all_data=False):
                 out[branch.name] = {
                     "commit_message": branch.commit["message"],
                     "commit_time": branch.commit["created_at"],
-                    "default": branch.name == pj.default_branch
+                    "default": branch.name == pj.default_branch,
                 }
             soft_key_and_status = {
                 "key": yaml_stage["key"],
